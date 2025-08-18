@@ -70,7 +70,7 @@ local PROFESSION_ICONS = {
   ["Fishing"] = "Interface\\Icons\\Trade_Fishing",
   ["Cooking"] = "Interface\\Icons\\INV_Misc_Food_15",
   ["First Aid"] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
-  ["Unknown"] = "Interface\\Icons\\INV_Misc_QuestionMark"
+  ["Unknown"] = "Interface\\Icons\\INV_Misc_Eye_01"
 }
 
 -- Function to get profession icon texture string
@@ -235,26 +235,44 @@ function createUI()
 
   -- Modern tab container
   local tabContainer = CreateFrame("Frame", nil, f)
-  tabContainer:SetHeight(28)
+  tabContainer:SetHeight(32)
   tabContainer:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 8, -4)
   tabContainer:SetPoint("TOPRIGHT", titleBar, "BOTTOMRIGHT", -8, -4)
   
-  -- Create modern flat tabs
-  local tabTemplate = "TabButtonTemplate"
-  local tab1 = CreateFrame("Button", f:GetName().."Tab1", tabContainer, tabTemplate)
-  tab1:SetID(1); tab1:SetText("⚒ Workers")
+  -- Create modern flat tabs (Classic-compatible without TabButtonTemplate)
+  local tab1 = CreateFrame("Button", f:GetName().."Tab1", tabContainer)
+  tab1:SetID(1)
+  tab1:SetSize(150, 28)
   tab1:SetPoint("LEFT", tabContainer, "LEFT", 0, 0)
-  tab1:SetSize(120, 24)
+  tab1:EnableMouse(true)
+  tab1:RegisterForClicks("LeftButtonUp")
   
-  local tab2 = CreateFrame("Button", f:GetName().."Tab2", tabContainer, tabTemplate)
-  tab2:SetID(2); tab2:SetText("🔍 Looking For")
-  tab2:SetPoint("LEFT", tab1, "RIGHT", 2, 0)
-  tab2:SetSize(140, 24)
+  local tab2 = CreateFrame("Button", f:GetName().."Tab2", tabContainer)
+  tab2:SetID(2)
+  tab2:SetSize(170, 28)
+  tab2:SetPoint("LEFT", tab1, "RIGHT", 4, 0)
+  tab2:EnableMouse(true)
+  tab2:RegisterForClicks("LeftButtonUp")
 
-  local tab3 = CreateFrame("Button", f:GetName().."Tab3", tabContainer, tabTemplate)
-  tab3:SetID(3); tab3:SetText("🏛 Guild Workers")
-  tab3:SetPoint("LEFT", tab2, "RIGHT", 2, 0)
-  tab3:SetSize(140, 24)
+  local tab3 = CreateFrame("Button", f:GetName().."Tab3", tabContainer)
+  tab3:SetID(3)
+  tab3:SetSize(180, 28)
+  tab3:SetPoint("LEFT", tab2, "RIGHT", 4, 0)
+  tab3:EnableMouse(true)
+  tab3:RegisterForClicks("LeftButtonUp")
+  
+  -- Add text to tabs manually (more reliable than TabButtonTemplate)
+  tab1.text = tab1:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  tab1.text:SetPoint("CENTER", tab1, "CENTER", 0, 0)
+  tab1.text:SetText("|TInterface\\Icons\\Trade_BlackSmithing:16:16:0:0|t Workers")
+  
+  tab2.text = tab2:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  tab2.text:SetPoint("CENTER", tab2, "CENTER", 0, 0)
+  tab2.text:SetText("|TInterface\\Icons\\INV_Misc_Eye_01:16:16:0:0|t Looking For")
+  
+  tab3.text = tab3:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  tab3.text:SetPoint("CENTER", tab3, "CENTER", 0, 0)
+  tab3.text:SetText("|TInterface\\Icons\\INV_Misc_GroupLooking:16:16:0:0|t Guild Workers")
   
   -- Style tabs with modern appearance
   for _, tab in ipairs({tab1, tab2, tab3}) do
@@ -263,17 +281,41 @@ function createUI()
       bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
       tile = true,
       tileSize = 16,
-      insets = { left = 4, right = 4, top = 4, bottom = 4 }
+      insets = { left = 6, right = 6, top = 6, bottom = 6 }
     })
     SetBackdropColorCompat(tab, 0.08, 0.12, 0.2, 0.8)
     
-    local tabText = tab:GetFontString()
-    if tabText then
-      tabText:SetTextColor(0.8, 0.8, 0.9, 1.0)
+    -- Set up hover effects
+    tab:SetScript("OnEnter", function(self)
+      if self ~= UI.activeTab then
+        SetBackdropColorCompat(self, 0.12, 0.18, 0.3, 0.9)
+      end
+    end)
+    
+    tab:SetScript("OnLeave", function(self)
+      if self ~= UI.activeTab then
+        SetBackdropColorCompat(self, 0.08, 0.12, 0.2, 0.8)
+      end
+    end)
+    
+    -- Ensure text is properly styled
+    if tab.text then
+      tab.text:SetTextColor(0.8, 0.8, 0.9, 1.0)
+      tab.text:SetJustifyH("CENTER")
+      tab.text:SetJustifyV("MIDDLE")
+      tab.text:SetWordWrap(false)
     end
+    
+    -- Ensure tab is clickable
+    tab:SetFrameLevel(tabContainer:GetFrameLevel() + 1)
   end
+  
+  -- Store reference to tabs for active state management
+  UI.tab1 = tab1
+  UI.tab2 = tab2
+  UI.tab3 = tab3
 
-  if PanelTemplates_SetNumTabs then PanelTemplates_SetNumTabs(f, 3) end
+  -- Note: Removed PanelTemplates_SetNumTabs since we're not using TabButtonTemplate
 
   -- Modern search area
   local searchArea = CreateFrame("Frame", nil, f)
@@ -290,9 +332,9 @@ function createUI()
   })
   SetBackdropColorCompat(searchArea, 0.03, 0.05, 0.08, 0.7)
   
-  -- Create modern search box
+  -- Create modern search box (repositioned for better layout)
   local search = CreateFrame("EditBox", nil, searchArea, "InputBoxTemplate")
-  search:SetSize(320, 24)
+  search:SetSize(360, 24)
   search:SetPoint("LEFT", searchArea, "LEFT", 12, 0)
   search:SetAutoFocus(false)
   
@@ -399,17 +441,9 @@ function createUI()
   UI.scroll = scroll
   UI.content = content
   
-  -- Refresh button
-  local btnRefresh = CreateFrame("Button", nil, searchArea, "UIPanelButtonTemplate")
-  btnRefresh:SetPoint("LEFT", search, "RIGHT", 12, 0)
-  btnRefresh:SetText("Refresh")
-  btnRefresh:SetScript("OnClick", function() UI.Force() end)
-  styleModernButton(btnRefresh, 80)
-  UI.btnRefresh = btnRefresh
-
-  -- Guild scan button
+  -- Guild scan button (repositioned after removing refresh button)
   local btnGuildScan = CreateFrame("Button", nil, searchArea, "UIPanelButtonTemplate")
-  btnGuildScan:SetPoint("LEFT", btnRefresh, "RIGHT", 8, 0)
+  btnGuildScan:SetPoint("LEFT", search, "RIGHT", 12, 0)
   btnGuildScan:SetText("Scan Guild")
   btnGuildScan:SetScript("OnClick", function()
     if not IsInGuild or not IsInGuild() then
@@ -468,25 +502,25 @@ function createUI()
     CRAFTERSBOARD_DB.lastTab = id
     
     -- Update tab appearance
-    for i, tab in ipairs({tab1, tab2, tab3}) do
+    local tabs = {UI.tab1, UI.tab2, UI.tab3}
+    for i, tab in ipairs(tabs) do
       if i == id then
         -- Active tab styling
         SetBackdropColorCompat(tab, 0.15, 0.25, 0.45, 1.0)
-        local tabText = tab:GetFontString()
-        if tabText then
-          tabText:SetTextColor(1.0, 1.0, 1.0, 1.0)
+        if tab.text then
+          tab.text:SetTextColor(1.0, 1.0, 1.0, 1.0)
         end
+        UI.activeTab = tab
       else
         -- Inactive tab styling
         SetBackdropColorCompat(tab, 0.08, 0.12, 0.2, 0.8)
-        local tabText = tab:GetFontString()
-        if tabText then
-          tabText:SetTextColor(0.8, 0.8, 0.9, 1.0)
+        if tab.text then
+          tab.text:SetTextColor(0.8, 0.8, 0.9, 1.0)
         end
       end
     end
     
-    if PanelTemplates_SetTab then PanelTemplates_SetTab(f, id) end
+    -- Note: Removed PanelTemplates_SetTab since we're using custom tabs
     f.title:SetText("CraftersBoard — "..
       (UI.activeKind == "PROVIDER" and "Workers" or UI.activeKind == "REQUESTER" and "Looking For" or "Guild Workers"))
     CRAFTERSBOARD_DB.filters.showProviders  = (UI.activeKind == "PROVIDER")
@@ -500,9 +534,18 @@ function createUI()
   end
   
   UI.setActiveTab = setActiveTab
-  tab1:SetScript("OnClick", function() setActiveTab(1) end)
-  tab2:SetScript("OnClick", function() setActiveTab(2) end)
-  tab3:SetScript("OnClick", function() setActiveTab(3) end)
+  UI.tab1:SetScript("OnClick", function() 
+    CB.DebugPrint("Tab 1 clicked - Workers")
+    setActiveTab(1) 
+  end)
+  UI.tab2:SetScript("OnClick", function() 
+    CB.DebugPrint("Tab 2 clicked - Looking For")
+    setActiveTab(2) 
+  end)
+  UI.tab3:SetScript("OnClick", function() 
+    CB.DebugPrint("Tab 3 clicked - Guild Workers")
+    setActiveTab(3) 
+  end)
 
   UI.frame = f
   
