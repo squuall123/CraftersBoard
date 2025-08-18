@@ -12,6 +12,7 @@ CB.DEFAULTS = {
     channelHints = {"general","trade","commerce","lookingforgroup","services"},
     strict = true, -- drop LFG/boost/raid messages unless clearly crafting related
     noiseCustom = { raids = {}, groups = {}, roles = {}, boosts = {} }, -- user-managed extra noise
+    showOfflineMembers = false, -- Show offline guild members in Guild Crafters tab
   },
   debug = false, -- Enable debug output
   entries = {},

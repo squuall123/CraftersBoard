@@ -712,8 +712,37 @@ function createUI()
   lblScan:SetTextColor(0.7, 0.7, 0.8, 1.0)
   lblScan:Hide()
   
+  -- Offline members checkbox (positioned to the left of the scan label)
+  local chkOfflineMembers = CreateFrame("CheckButton", nil, searchArea, "UICheckButtonTemplate")
+  chkOfflineMembers:SetSize(20, 20)
+  chkOfflineMembers:SetPoint("RIGHT", lblScan, "LEFT", -8, 0)
+  chkOfflineMembers:SetChecked(CRAFTERSBOARD_DB.filters.showOfflineMembers)
+  chkOfflineMembers:SetScript("OnClick", function(self)
+    CRAFTERSBOARD_DB.filters.showOfflineMembers = self:GetChecked()
+    if UI.Force then UI.Force() end
+  end)
+  chkOfflineMembers:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+    GameTooltip:SetText("Show Offline Members", 1, 1, 1)
+    GameTooltip:AddLine("Check this to display offline guild members\nin the Guild Crafters list", 0.9, 0.9, 0.9, true)
+    GameTooltip:Show()
+  end)
+  chkOfflineMembers:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
+  chkOfflineMembers:Hide()
+  
+  -- Offline members label
+  local lblOfflineMembers = searchArea:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  lblOfflineMembers:SetPoint("RIGHT", chkOfflineMembers, "LEFT", -4, 0)
+  lblOfflineMembers:SetText("Show offline")
+  lblOfflineMembers:SetTextColor(0.7, 0.7, 0.8, 1.0)
+  lblOfflineMembers:Hide()
+  
   UI.btnGuildScan = btnGuildScan
   UI.lblScan = lblScan
+  UI.chkOfflineMembers = chkOfflineMembers
+  UI.lblOfflineMembers = lblOfflineMembers
 
   -- Force refresh function
   function UI.Force()
@@ -781,8 +810,13 @@ function createUI()
     CRAFTERSBOARD_DB.filters.showRequesters = (UI.activeKind == "REQUESTER")
     if UI.scroll and UI.scroll.SetVerticalScroll then UI.scroll:SetVerticalScroll(0) end
     if UI.btnGuildScan then
-      if UI.activeKind == "GUILD" then UI.btnGuildScan:Show(); UI.lblScan:Show()
-      else UI.btnGuildScan:Hide(); UI.lblScan:Hide() end
+      if UI.activeKind == "GUILD" then 
+        UI.btnGuildScan:Show(); UI.lblScan:Show()
+        UI.chkOfflineMembers:Show(); UI.lblOfflineMembers:Show()
+      else 
+        UI.btnGuildScan:Hide(); UI.lblScan:Hide()
+        UI.chkOfflineMembers:Hide(); UI.lblOfflineMembers:Hide()
+      end
     end
     UI.Force()
   end

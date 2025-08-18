@@ -158,6 +158,13 @@ function CB.GroupGuildByProfession(query)
         end
       end
       
+      -- Apply offline filter (only show online members if showOfflineMembers is false)
+      if shouldInclude and not CRAFTERSBOARD_DB.filters.showOfflineMembers then
+        if not member.online then
+          shouldInclude = false
+        end
+      end
+      
       -- Group by each profession the member has
       if shouldInclude then
         for prof, level in pairs(member.profs) do
