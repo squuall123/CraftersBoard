@@ -19,10 +19,69 @@ local createUI, SetupResizeHandles, SaveWindowGeometry, RestoreWindowGeometry
 -- Utility tables
 local tinsert = table.insert
 
+-- Classic compatibility functions for backdrop
+local function SetBackdropCompat(frame, backdrop)
+  if frame.SetBackdrop then
+    frame:SetBackdrop(backdrop)
+  else
+    -- Classic fallback: create a manual backdrop texture
+    if not frame._backdrop then
+      frame._backdrop = frame:CreateTexture(nil, "BACKGROUND")
+      frame._backdrop:SetAllPoints()
+    end
+    if backdrop and backdrop.bgFile then
+      frame._backdrop:SetTexture(backdrop.bgFile)
+      frame._backdrop:SetTexCoord(0, 1, 0, 1)
+    end
+  end
+end
+
+local function SetBackdropColorCompat(frame, r, g, b, a)
+  if frame.SetBackdropColor then
+    frame:SetBackdropColor(r, g, b, a)
+  elseif frame._backdrop then
+    frame._backdrop:SetVertexColor(r, g, b, a or 1)
+  end
+end
+
+local function SetBackdropBorderColorCompat(frame, r, g, b, a)
+  if frame.SetBackdropBorderColor then
+    frame:SetBackdropBorderColor(r, g, b, a)
+  end
+  -- Note: Border color not easily implemented in manual fallback
+end
+
 -- Coin textures for tooltip prices
 local GOLD_TEX   = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t"
 local SILVER_TEX = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t"
 local COPPER_TEX = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t"
+
+-- Profession icon paths for Classic WoW
+local PROFESSION_ICONS = {
+  ["Alchemy"] = "Interface\\Icons\\Trade_Alchemy",
+  ["Blacksmithing"] = "Interface\\Icons\\Trade_BlackSmithing",
+  ["Enchanting"] = "Interface\\Icons\\Trade_Engraving",
+  ["Engineering"] = "Interface\\Icons\\Trade_Engineering",
+  ["Leatherworking"] = "Interface\\Icons\\Trade_LeatherWorking",
+  ["Tailoring"] = "Interface\\Icons\\Trade_Tailoring",
+  ["Mining"] = "Interface\\Icons\\Trade_Mining",
+  ["Herbalism"] = "Interface\\Icons\\Trade_Herbalism",
+  ["Skinning"] = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01",
+  ["Fishing"] = "Interface\\Icons\\Trade_Fishing",
+  ["Cooking"] = "Interface\\Icons\\INV_Misc_Food_15",
+  ["First Aid"] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
+  ["Unknown"] = "Interface\\Icons\\INV_Misc_QuestionMark"
+}
+
+-- Function to get profession icon texture string
+function CB.getProfessionIcon(profession, size)
+  size = size or 16
+  local iconPath = PROFESSION_ICONS[profession]
+  if iconPath then
+    return "|T" .. iconPath .. ":" .. size .. ":" .. size .. ":0:0|t"
+  end
+  return ""
+end
 
 function CB.moneyTextureString(c)
   if not c or c <= 0 then return "—" end
@@ -106,6 +165,18 @@ function createUI()
   f:EnableMouse(true)
   f:RegisterForDrag("LeftButton")
   f:Hide()
+  
+  -- Modern dark transparent background
+  SetBackdropCompat(f, {
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true,
+    tileSize = 32,
+    edgeSize = 32,
+    insets = { left = 11, right = 12, top = 12, bottom = 11 }
+  })
+  SetBackdropColorCompat(f, 0.1, 0.1, 0.15, 0.9)  -- Dark blue-gray with transparency
+  SetBackdropBorderColorCompat(f, 0.4, 0.4, 0.5, 1.0)  -- Subtle border
 
   if UISpecialFrames then tinsert(UISpecialFrames, f:GetName()) end
 
@@ -129,18 +200,18 @@ function createUI()
   f.title:SetPoint("LEFT", f.TitleBg, "LEFT", 6, 0)
   f.title:SetText("CraftersBoard — Workers")
 
-  -- Create tabs
+  -- Create tabs with profession icons
   local tabTemplate = "CharacterFrameTabButtonTemplate"
   local tab1 = CreateFrame("Button", f:GetName().."Tab1", f, tabTemplate)
-  tab1:SetID(1); tab1:SetText("Workers")
+  tab1:SetID(1); tab1:SetText("⚒ Workers")
   tab1:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 12, -8)
 
   local tab2 = CreateFrame("Button", f:GetName().."Tab2", f, tabTemplate)
-  tab2:SetID(2); tab2:SetText("Looking For")
+  tab2:SetID(2); tab2:SetText("🔍 Looking For")
   tab2:SetPoint("LEFT", tab1, "RIGHT", -16, 0)
 
   local tab3 = CreateFrame("Button", f:GetName().."Tab3", f, tabTemplate)
-  tab3:SetID(3); tab3:SetText("Guild Workers")
+  tab3:SetID(3); tab3:SetText("🏛 Guild Workers")
   tab3:SetPoint("LEFT", tab2, "RIGHT", -16, 0)
 
   if PanelTemplates_SetNumTabs then PanelTemplates_SetNumTabs(f, 3) end
@@ -150,6 +221,15 @@ function createUI()
   scroll:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -96)
   scroll:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -26, 12)
   scroll:SetFrameStrata("DIALOG")
+  
+  -- Modern dark background for scroll area
+  SetBackdropCompat(scroll, {
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    tile = true,
+    tileSize = 16,
+    insets = { left = 2, right = 2, top = 2, bottom = 2 }
+  })
+  SetBackdropColorCompat(scroll, 0.05, 0.05, 0.1, 0.8)  -- Very dark background for content area
   
   local content = CreateFrame("Frame", nil, scroll)
   content:SetSize(1, 1)
@@ -169,6 +249,18 @@ function createUI()
   search:SetSize(300, 24)
   search:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -64)
   search:SetAutoFocus(false)
+  
+  -- Modern dark styling for search box
+  SetBackdropCompat(search, {
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+  })
+  SetBackdropColorCompat(search, 0.1, 0.1, 0.15, 0.9)
+  SetBackdropBorderColorCompat(search, 0.5, 0.5, 0.6, 1.0)
   search:SetScript("OnEnterPressed", function(self) 
     CRAFTERSBOARD_DB.filters.search = CB.trim(self:GetText():lower() or "")
     UI.Force()

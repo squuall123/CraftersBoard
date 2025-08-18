@@ -306,7 +306,10 @@ function UI.render()
         if h then
           h:ClearAllPoints()
           h:SetPoint("TOPLEFT", 0, y); h:SetPoint("RIGHT", -4, 0)
-          h.text:SetText(string.format("%s (%d/%d)", prof, onlineCount, #list))
+          
+          -- Add profession icon to header text
+          local profIcon = CB.getProfessionIcon and CB.getProfessionIcon(prof, 16) or ""
+          h.text:SetText(string.format("%s %s (%d/%d)", profIcon, prof, onlineCount, #list))
           h.prof = prof
           h.kind = "GUILD"
 
@@ -327,7 +330,7 @@ function UI.render()
                 r.bar:Show()
                 r.col2:Show(); r.col1:Show(); r.col3:Show(); r.col4:Show()
 
-                -- Name
+                -- Name without redundant profession icon (already in header)
                 r.col2:ClearAllPoints(); r.col2:SetPoint("LEFT", 6, 0); r.col2:SetWidth(wName)
                 r.col2:SetText(CB.classColorWrap(m.name or "?", m.classFile))
 
@@ -391,7 +394,10 @@ function UI.render()
         if h then
           h:ClearAllPoints()
           h:SetPoint("TOPLEFT", 0, y); h:SetPoint("RIGHT", -4, 0)
-          h.text:SetText(prof.." ("..#list..")")
+          
+          -- Add profession icon to header text
+          local profIcon = CB.getProfessionIcon and CB.getProfessionIcon(prof, 16) or ""
+          h.text:SetText(string.format("%s %s (%d)", profIcon, prof, #list))
           h.prof = prof
           h.kind = wantKind
 
@@ -418,6 +424,7 @@ function UI.render()
                 r.col4:ClearAllPoints(); r.col4:SetPoint("LEFT", r.col3, "RIGHT", 8, 0)
 
                 r.col1:SetText(CB.agoStr(e.time))
+                -- Remove redundant profession icon since entries are already grouped by profession
                 r.col2:SetText(e.player or "?")
                 r.col3:SetText(e.channel or "")
                 -- Parse any remaining icon markup in the message
