@@ -71,7 +71,7 @@ function CB.GroupEntriesByProfession(kind, query)
   local grouped = {}
   
   -- Initialize profession groups
-  for _, prof in ipairs(CB.PROF_ORDER or {"Unknown"}) do 
+  for _, prof in ipairs(CB.PROF_ORDER or {"Other"}) do 
     grouped[prof] = {} 
   end
   
@@ -118,14 +118,14 @@ function CB.GroupEntriesByProfession(kind, query)
         end
       end
       
-      -- Group by primary profession or "Unknown"
+      -- Group by primary profession or "Other"
       if shouldInclude then
-        local prof = (e.profs and e.profs[1]) or "Unknown"
+        local prof = (e.profs and e.profs[1]) or "Other"
         if grouped[prof] then
           table.insert(grouped[prof], 1, e)  -- Insert at beginning for newest-first order
         else
-          if not grouped["Unknown"] then grouped["Unknown"] = {} end
-          table.insert(grouped["Unknown"], 1, e)  -- Insert at beginning for newest-first order
+          if not grouped["Other"] then grouped["Other"] = {} end
+          table.insert(grouped["Other"], 1, e)  -- Insert at beginning for newest-first order
         end
       end
     end
@@ -138,7 +138,7 @@ function CB.GroupGuildByProfession(query)
   local grouped = {}
   
   -- Initialize profession groups
-  for _, prof in ipairs(CB.PROF_ORDER or {"Unknown"}) do 
+  for _, prof in ipairs(CB.PROF_ORDER or {"Other"}) do 
     grouped[prof] = {} 
   end
   

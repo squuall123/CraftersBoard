@@ -21,7 +21,7 @@ CB.PROF_KEYWORDS = {
 
 CB.PROF_ORDER = {
   "Alchemy","Blacksmithing","Enchanting","Engineering","Leatherworking",
-  "Tailoring","Cooking","FirstAid","Fishing","Herbalism","Mining","Skinning","Unknown"
+  "Tailoring","Cooking","FirstAid","Fishing","Herbalism","Mining","Skinning","Other"
 }
 
 -- Build keyword to profession mapping

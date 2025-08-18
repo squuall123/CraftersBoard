@@ -69,8 +69,8 @@ local PROFESSION_ICONS = {
   ["Skinning"] = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01",
   ["Fishing"] = "Interface\\Icons\\Trade_Fishing",
   ["Cooking"] = "Interface\\Icons\\INV_Misc_Food_15",
-  ["First Aid"] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
-  ["Unknown"] = "Interface\\Icons\\INV_Misc_Eye_01"
+  ["FirstAid"] = "Interface\\Icons\\Spell_Holy_Heal",
+  ["Other"] = "Interface\\Icons\\INV_Misc_QuestionMark"
 }
 
 -- Function to get profession icon texture string
@@ -214,7 +214,7 @@ function createUI()
   -- Modern title text
   f.title = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   f.title:SetPoint("LEFT", titleBar, "LEFT", 16, 0)
-  f.title:SetText("CraftersBoard — Workers")
+  f.title:SetText("CraftersBoard — Crafters")
   f.title:SetTextColor(0.9, 0.9, 1.0, 1.0)  -- Slight blue tint
   
   -- Modern close button
@@ -264,15 +264,15 @@ function createUI()
   -- Add text to tabs manually (more reliable than TabButtonTemplate)
   tab1.text = tab1:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   tab1.text:SetPoint("CENTER", tab1, "CENTER", 0, 0)
-  tab1.text:SetText("|TInterface\\Icons\\Trade_BlackSmithing:16:16:0:0|t Workers")
+  tab1.text:SetText("|TInterface\\Icons\\Trade_BlackSmithing:16:16:0:0|t Crafters")
   
   tab2.text = tab2:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   tab2.text:SetPoint("CENTER", tab2, "CENTER", 0, 0)
-  tab2.text:SetText("|TInterface\\Icons\\INV_Misc_Eye_01:16:16:0:0|t Looking For")
+  tab2.text:SetText("|TInterface\\Icons\\INV_Scroll_08:16:16:0:0|t Requests")
   
   tab3.text = tab3:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   tab3.text:SetPoint("CENTER", tab3, "CENTER", 0, 0)
-  tab3.text:SetText("|TInterface\\Icons\\INV_Misc_GroupLooking:16:16:0:0|t Guild Workers")
+  tab3.text:SetText("|TInterface\\Icons\\INV_Misc_GroupLooking:16:16:0:0|t Guild Crafters")
   
   -- Style tabs with modern appearance
   for _, tab in ipairs({tab1, tab2, tab3}) do
@@ -776,7 +776,7 @@ function createUI()
     
     -- Note: Removed PanelTemplates_SetTab since we're using custom tabs
     f.title:SetText("CraftersBoard — "..
-      (UI.activeKind == "PROVIDER" and "Workers" or UI.activeKind == "REQUESTER" and "Looking For" or "Guild Workers"))
+      (UI.activeKind == "PROVIDER" and "Crafters" or UI.activeKind == "REQUESTER" and "Requests" or "Guild Crafters"))
     CRAFTERSBOARD_DB.filters.showProviders  = (UI.activeKind == "PROVIDER")
     CRAFTERSBOARD_DB.filters.showRequesters = (UI.activeKind == "REQUESTER")
     if UI.scroll and UI.scroll.SetVerticalScroll then UI.scroll:SetVerticalScroll(0) end

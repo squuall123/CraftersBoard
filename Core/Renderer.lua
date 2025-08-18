@@ -340,7 +340,7 @@ function UI.render()
       end
     end
     
-    for _, prof in ipairs(CB.PROF_ORDER or {"Unknown"}) do
+    for _, prof in ipairs(CB.PROF_ORDER or {"Other"}) do
       local list = grouped[prof]
       if list and #list > 0 then
         -- Sort list like the original
@@ -440,7 +440,7 @@ function UI.render()
     local wantKind = UI.activeKind or "PROVIDER"
     local grouped = CB.GroupEntriesByProfession and CB.GroupEntriesByProfession(wantKind, q) or {}
 
-    for _, prof in ipairs(CB.PROF_ORDER or {"Unknown"}) do
+    for _, prof in ipairs(CB.PROF_ORDER or {"Other"}) do
       local list = grouped[prof]
       if list and #list > 0 then
         local h = UI.AcquireHeader(UI.content)
