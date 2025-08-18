@@ -132,7 +132,7 @@ function SetupResizeHandles(frame)
   end
 
   local rb = CreateFrame("Button", nil, frame)
-  rb:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -5, 5)
+  rb:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -4, 5)  -- Positioned under the custom scroll bar
   rb:SetSize(16, 16)
   rb:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
   rb:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
@@ -410,23 +410,215 @@ function createUI()
   -- Store search reference
   UI.search = search
   
-  -- Modern content area with scroll frame
-  local scroll = CreateFrame("ScrollFrame", f:GetName().."Scroll", f, "UIPanelScrollFrameTemplate")
-  scroll:SetPoint("TOPLEFT", searchArea, "BOTTOMLEFT", 8, -8)
-  scroll:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -26, 12)
-  scroll:SetFrameStrata("DIALOG")
+  -- Modern content area with MinimalScrollBar (Anniversary Edition)
+  local scrollContainer = CreateFrame("Frame", nil, f)
+  scrollContainer:SetPoint("TOPLEFT", searchArea, "BOTTOMLEFT", 8, -8)
+  scrollContainer:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -8, 25)  -- Extra space for resize handle under scroll bar
   
-  -- Modern dark background for scroll area with inner shadow effect
-  SetBackdropCompat(scroll, {
+  -- Container background
+  SetBackdropCompat(scrollContainer, {
     bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
     tile = true,
     tileSize = 16,
     edgeSize = 12,
-    insets = { left = 8, right = 8, top = 8, bottom = 8 }
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
   })
-  SetBackdropColorCompat(scroll, 0.02, 0.03, 0.06, 0.9)  -- Very dark content area
-  SetBackdropBorderColorCompat(scroll, 0.15, 0.25, 0.4, 0.7)  -- Subtle inner border
+  SetBackdropColorCompat(scrollContainer, 0.02, 0.03, 0.06, 0.9)
+  SetBackdropBorderColorCompat(scrollContainer, 0.15, 0.25, 0.4, 0.7)
+  
+  -- Create scroll frame with fallback for Classic compatibility
+  local scroll
+  local useMinimalScrollBar = false
+  
+  -- Try MinimalScrollBar first (Anniversary Edition)
+  if MinimalScrollBarTemplate or MinimalScrollBar then
+    local success, result = pcall(function()
+      scroll = CreateFrame("ScrollFrame", f:GetName().."Scroll", scrollContainer, "MinimalScrollBar")
+      
+      -- Test if CallbackRegistry is properly available
+      if scroll.OnLoad then
+        scroll:OnLoad()
+      end
+      
+      -- Verify callback registry is working
+      if scroll.callbackTables == nil then
+        -- Try to initialize manually
+        scroll.callbackTables = {}
+        local CallbackType = { Closure = 1, Function = 2 }
+        for callbackType, value in pairs(CallbackType) do
+          scroll.callbackTables[value] = {}
+        end
+      end
+      
+      -- Test if the scroll bar actually works
+      if scroll.SetScrollPercentage then
+        scroll:SetScrollPercentage(0)  -- Test call
+      end
+      
+      return true
+    end)
+    
+    if success and result and scroll then
+      useMinimalScrollBar = true
+      CB.DebugPrint("Successfully initialized MinimalScrollBar for modern scroll appearance")
+    else
+      CB.DebugPrint("MinimalScrollBar failed (callback registry issue), falling back to styled UIPanelScrollFrameTemplate")
+      if scroll then
+        scroll:Hide()
+        scroll = nil
+      end
+    end
+  else
+    CB.DebugPrint("MinimalScrollBar template not available, using styled UIPanelScrollFrameTemplate")
+  end
+  
+  -- Fallback to standard scroll frame with custom minimal scroll bar styling
+  if not useMinimalScrollBar then
+    scroll = CreateFrame("ScrollFrame", f:GetName().."Scroll", scrollContainer, "UIPanelScrollFrameTemplate")
+    
+    -- Create a custom minimal scroll bar that looks like Anniversary Edition
+    local scrollBar = scroll.ScrollBar or _G[scroll:GetName().."ScrollBar"]
+    if scrollBar then
+      CB.DebugPrint("Creating custom minimal scroll bar design")
+      
+      -- Hide the standard scroll bar completely
+      scrollBar:Hide()
+      
+      -- Create our custom minimal scroll bar
+      local customScrollBar = CreateFrame("Frame", nil, scrollContainer)
+      customScrollBar:SetPoint("TOPRIGHT", scrollContainer, "TOPRIGHT", -4, -4)
+      customScrollBar:SetPoint("BOTTOMRIGHT", scrollContainer, "BOTTOMRIGHT", -4, 4)
+      customScrollBar:SetWidth(12)
+      
+      -- Minimal track background (very subtle)
+      local track = customScrollBar:CreateTexture(nil, "BACKGROUND")
+      track:SetAllPoints()
+      track:SetColorTexture(0.1, 0.1, 0.15, 0.3)  -- Very subtle dark track
+      
+      -- Create minimal thumb
+      local thumb = CreateFrame("Button", nil, customScrollBar)
+      thumb:SetWidth(8)
+      thumb:SetPoint("TOP", customScrollBar, "TOP", 0, 0)
+      
+      -- Thumb texture (sleek minimal design)
+      local thumbTex = thumb:CreateTexture(nil, "ARTWORK")
+      thumbTex:SetAllPoints()
+      thumbTex:SetColorTexture(0.4, 0.5, 0.7, 0.8)  -- Modern blue-gray
+      
+      -- Thumb hover effect
+      thumb:SetScript("OnEnter", function()
+        thumbTex:SetColorTexture(0.5, 0.6, 0.8, 0.9)
+      end)
+      thumb:SetScript("OnLeave", function()
+        thumbTex:SetColorTexture(0.4, 0.5, 0.7, 0.8)
+      end)
+      
+      -- Scroll functionality
+      local function updateThumb()
+        local scrollRange = scroll:GetVerticalScrollRange()
+        local scrollValue = scroll:GetVerticalScroll()
+        local trackHeight = customScrollBar:GetHeight()
+        
+        if scrollRange > 0 then
+          local thumbHeight = math.max(20, trackHeight * (trackHeight / (trackHeight + scrollRange)))
+          local thumbPos = (scrollValue / scrollRange) * (trackHeight - thumbHeight)
+          
+          thumb:SetHeight(thumbHeight)
+          thumb:ClearAllPoints()
+          thumb:SetPoint("TOP", customScrollBar, "TOP", 0, -thumbPos)
+          customScrollBar:Show()
+        else
+          customScrollBar:Hide()
+        end
+      end
+      
+      -- Dragging functionality
+      local isDragging = false
+      local startY, startScroll
+      
+      thumb:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" then
+          isDragging = true
+          startY = select(2, GetCursorPosition())
+          startScroll = scroll:GetVerticalScroll()
+          self:SetScript("OnUpdate", function()
+            if isDragging then
+              local currentY = select(2, GetCursorPosition())
+              local deltaY = (startY - currentY) / self:GetEffectiveScale()
+              local scrollRange = scroll:GetVerticalScrollRange()
+              local trackHeight = customScrollBar:GetHeight()
+              local thumbHeight = thumb:GetHeight()
+              
+              if scrollRange > 0 and trackHeight > thumbHeight then
+                local scrollPercent = deltaY / (trackHeight - thumbHeight)
+                local newScroll = math.max(0, math.min(scrollRange, startScroll + (scrollPercent * scrollRange)))
+                scroll:SetVerticalScroll(newScroll)
+                updateThumb()
+              end
+            end
+          end)
+        end
+      end)
+      
+      thumb:SetScript("OnMouseUp", function(self, button)
+        if button == "LeftButton" then
+          isDragging = false
+          self:SetScript("OnUpdate", nil)
+        end
+      end)
+      
+      -- Track click to scroll
+      customScrollBar:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" then
+          local y = select(2, GetCursorPosition()) / self:GetEffectiveScale()
+          local trackTop = self:GetTop()
+          local thumbTop = thumb:GetTop()
+          local thumbBottom = thumb:GetBottom()
+          
+          if y > thumbTop then
+            -- Click above thumb - scroll up
+            scroll:SetVerticalScroll(math.max(0, scroll:GetVerticalScroll() - 100))
+          elseif y < thumbBottom then
+            -- Click below thumb - scroll down
+            scroll:SetVerticalScroll(math.min(scroll:GetVerticalScrollRange(), scroll:GetVerticalScroll() + 100))
+          end
+          updateThumb()
+        end
+      end)
+      
+      -- Mouse wheel support
+      scroll:SetScript("OnMouseWheel", function(self, delta)
+        local newScroll = self:GetVerticalScroll() - (delta * 40)
+        newScroll = math.max(0, math.min(self:GetVerticalScrollRange(), newScroll))
+        self:SetVerticalScroll(newScroll)
+        updateThumb()
+      end)
+      
+      -- Update thumb when content changes
+      scroll:SetScript("OnScrollRangeChanged", updateThumb)
+      scroll:SetScript("OnVerticalScroll", updateThumb)
+      
+      -- Store reference for updates
+      scroll.customScrollBar = customScrollBar
+      scroll.updateThumb = updateThumb
+      
+      CB.DebugPrint("Custom minimal scroll bar created successfully")
+    else
+      CB.DebugPrint("Warning: Could not find scroll bar to replace")
+    end
+  end
+  
+  -- Set positioning based on scroll bar type
+  if useMinimalScrollBar then
+    scroll:SetPoint("TOPLEFT", scrollContainer, "TOPLEFT", 6, -6)
+    scroll:SetPoint("BOTTOMRIGHT", scrollContainer, "BOTTOMRIGHT", -18, 6)  -- Space for minimal scroll bar
+  else
+    scroll:SetPoint("TOPLEFT", scrollContainer, "TOPLEFT", 6, -6)
+    scroll:SetPoint("BOTTOMRIGHT", scrollContainer, "BOTTOMRIGHT", -18, 6)  -- Space for custom minimal scroll bar
+  end
+  
+  scroll:SetFrameStrata("DIALOG")
   
   local content = CreateFrame("Frame", nil, scroll)
   content:SetSize(1, 1)
@@ -493,6 +685,15 @@ function createUI()
     if UI.scroll.UpdateScrollChildRect then 
       UI.scroll:UpdateScrollChildRect()
     end
+    
+    -- Update custom scroll bar if it exists
+    if UI.scroll.updateThumb then
+      C_Timer.After(0.05, function()
+        if UI.scroll.updateThumb then
+          UI.scroll.updateThumb()
+        end
+      end)
+    end
   end
 
   -- Tab switching function with modern styling
@@ -548,6 +749,12 @@ function createUI()
   end)
 
   UI.frame = f
+  
+  -- Add credits text (bottom-left, opposite the resize handle)
+  local credits = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  credits:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 8)
+  credits:SetText("CraftersBoard v1.0 by Squall#69")
+  credits:SetTextColor(0.6, 0.7, 0.8, 0.8)  -- Subtle blue-gray color
   
   -- Restore window geometry
   RestoreWindowGeometry(f)
