@@ -53,10 +53,29 @@ function UI.ShowRowMenu(row)
   local isGuild = row.guild == true
   local hasMsg  = not isGuild and row.entry and row.entry.message
 
+  -- Clean player name (remove realm suffix for Classic compatibility)
+  local cleanName = name:match("^([^-]+)") or name
+
   local menu = {
     { text = name, isTitle = true, notCheckable = true },
     { text = "Whisper", notCheckable = true, func = function()
-      ChatFrame_OpenChat("/w " .. name .. " ", SELECTED_DOCK_FRAME)
+      ChatFrame_OpenChat("/w " .. cleanName .. " ", SELECTED_DOCK_FRAME)
+    end },
+    { text = "Invite", notCheckable = true, func = function()
+      InviteUnit(cleanName)
+    end },
+    { text = "Add Friend", notCheckable = true, func = function()
+      -- Classic-compatible friend adding
+      if C_FriendList and C_FriendList.AddFriend then
+        C_FriendList.AddFriend(cleanName)
+      else
+        -- Fallback for older Classic versions
+        SendChatMessage("/friend " .. cleanName, "GUILD")
+      end
+    end },
+    { text = "Who", notCheckable = true, func = function()
+      -- Execute /who command directly
+      SlashCmdList["WHO"](cleanName)
     end },
   }
 
@@ -79,6 +98,19 @@ function UI.ShowRowMenu(row)
     if UI and UI.Force then UI.Force() end
   end })
 
+  -- Add separator before Request submenu
+  table.insert(menu, { text = "", disabled = true, notCheckable = true })
+  
+  -- Add Request submenu with proper Classic dropdown implementation
+  table.insert(menu, { 
+    text = "Request", 
+    notCheckable = true, 
+    hasArrow = true,
+    value = "REQUEST_SUBMENU"
+  })
+
+  -- Add separator before Cancel
+  table.insert(menu, { text = "", disabled = true, notCheckable = true })
   table.insert(menu, { text = CANCEL, notCheckable = true })
 
   -- Create dropdown menu
@@ -91,9 +123,30 @@ function UI.ShowRowMenu(row)
   else
     if not UI.menuFrameInit then
       UIDropDownMenu_Initialize(UI.menuFrame, function(self, level)
-        for _, info in ipairs(UI.menuItems or {}) do
+        if level == 1 then
+          for _, info in ipairs(UI.menuItems or {}) do
+            local di = UIDropDownMenu_CreateInfo()
+            for k, v in pairs(info) do di[k] = v end
+            UIDropDownMenu_AddButton(di, level)
+          end
+        elseif level == 2 and UIDROPDOWNMENU_MENU_VALUE == "REQUEST_SUBMENU" then
+          -- Request submenu items
           local di = UIDropDownMenu_CreateInfo()
-          for k, v in pairs(info) do di[k] = v end
+          di.text = "Ask for mats"
+          di.notCheckable = true
+          di.func = function()
+            local template = CRAFTERSBOARD_DB.requestTemplates.askForMats or "Hi! Could you please tell me what materials you need for your crafting services? Thanks!"
+            ChatFrame_OpenChat("/w " .. cleanName .. " " .. template, SELECTED_DOCK_FRAME)
+          end
+          UIDropDownMenu_AddButton(di, level)
+          
+          di = UIDropDownMenu_CreateInfo()
+          di.text = "Ask for price"
+          di.notCheckable = true
+          di.func = function()
+            local template = CRAFTERSBOARD_DB.requestTemplates.askForPrice or "Hello! Could you please let me know your pricing for crafting services? Thank you!"
+            ChatFrame_OpenChat("/w " .. cleanName .. " " .. template, SELECTED_DOCK_FRAME)
+          end
           UIDropDownMenu_AddButton(di, level)
         end
       end, "MENU")

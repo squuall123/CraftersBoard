@@ -196,10 +196,26 @@ function createOptionsPanel()
       CRAFTERSBOARD_DB.maxEntries = math.max(50, math.min(1000, n))
     end)
 
+  -- Request Templates section
+  Title(panel, "Request Message Templates", 20, -300)
+  SubText(panel, "Customize the predefined whisper messages for requesting materials and pricing.", 20, -325)
+
+  -- Ask for mats template
+  mkEdit("CBOptAskMatsTemplate", panel, 450, 20, -350, "Ask for materials template", 
+    "Template message for asking about required materials",
+    function() return CRAFTERSBOARD_DB.requestTemplates.askForMats end,
+    function(v) CRAFTERSBOARD_DB.requestTemplates.askForMats = v or CB.DEFAULTS.requestTemplates.askForMats end)
+
+  -- Ask for price template  
+  mkEdit("CBOptAskPriceTemplate", panel, 450, 20, -420, "Ask for price template", 
+    "Template message for asking about pricing",
+    function() return CRAFTERSBOARD_DB.requestTemplates.askForPrice end,
+    function(v) CRAFTERSBOARD_DB.requestTemplates.askForPrice = v or CB.DEFAULTS.requestTemplates.askForPrice end)
+
   -- Add utility buttons
   local pruneBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
   pruneBtn:SetSize(120, 24)
-  pruneBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -310)
+  pruneBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -480)
   pruneBtn:SetText("Prune Old Entries")
   pruneBtn:SetScript("OnClick", function()
     if CB.pruneEntries then
@@ -236,8 +252,8 @@ function createOptionsPanel()
   end)
 
   -- Instructions
-  SubText(panel, "Use /cb to open the main window, /cb config to open settings, or /cb help for command list.", 20, -360)
-  SubText(panel, "Addon automatically scans chat channels for crafting requests and service offers.", 20, -380)
+  SubText(panel, "Use /cb to open the main window, /cb config to open settings, or /cb help for command list.", 20, -530)
+  SubText(panel, "Addon automatically scans chat channels for crafting requests and service offers.", 20, -550)
 
   return panel
 end
