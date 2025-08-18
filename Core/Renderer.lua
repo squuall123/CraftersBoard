@@ -30,6 +30,21 @@ function CB.cleanPlayerName(name)
   return name:match("^([^-]+)") or name
 end
 
+-- Helper function to get color for profession skill level
+function CB.getProfessionLevelColor(level)
+  if not level or level <= 0 then
+    return 0.5, 0.5, 0.5 -- Gray for no skill
+  elseif level <= 150 then
+    return 1.0, 0.3, 0.3 -- Red for Apprentice/Journeyman (1-150)
+  elseif level <= 225 then
+    return 1.0, 0.8, 0.0 -- Yellow/Orange for Expert (151-225)
+  elseif level <= 299 then
+    return 0.2, 1.0, 0.2 -- Green for Artisan (226-299)
+  else
+    return 0.0, 0.8, 1.0 -- Blue for Master (300)
+  end
+end
+
 -- Tooltip handling for rows
 local function AttachRowTooltip(row)
   row:SetScript("OnEnter", function(self)
@@ -43,6 +58,24 @@ local function AttachRowTooltip(row)
     GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetText(title, 1,1,1)
     GameTooltip:AddLine("Left-click to whisper | Right-click for actions", .9,.9,.9)
+    
+    -- Show all profession levels for guild members
+    if self.guild and self.player then
+      local members = CRAFTERSBOARD_DB.guildScan.members or {}
+      for _, member in ipairs(members) do
+        if member.name == self.player and member.profs then
+          GameTooltip:AddLine(" ", 1,1,1) -- Spacer
+          GameTooltip:AddLine("Professions:", 0.8, 0.8, 1.0)
+          for prof, level in pairs(member.profs) do
+            if level and level > 0 then
+              local r, g, b = CB.getProfessionLevelColor(level)
+              GameTooltip:AddLine(string.format("  %s: %d/300", prof, level), r, g, b)
+            end
+          end
+          break
+        end
+      end
+    end
     
     if self.entry and CB.AppendTooltipPrices then 
       CB.AppendTooltipPrices(self.entry) 
@@ -258,7 +291,13 @@ function UI.AcquireRow(parent)
     b.bar.text:SetPoint("CENTER", b.bar, "CENTER", 0, 0)
     b.bar.text:SetTextColor(1, 1, 1)
     b.bar.text:SetShadowOffset(1, -1)
-    b.SetBarColor = function(self, _) self.bar:SetStatusBarColor(0.00, 0.65, 1.00) end
+    b.SetBarColor = function(self, r, g, b) 
+      -- Default blue color if no color specified
+      r = r or 0.00
+      g = g or 0.65
+      b = b or 1.00
+      self.bar:SetStatusBarColor(r, g, b) 
+    end
     b:SetBarColor()
     b.bar:Hide()
 
@@ -405,8 +444,17 @@ function UI.render()
                 r.bar:SetWidth(wBar)
                 r.bar:SetMinMaxValues(0, 300)
                 r.bar:SetValue(lvl or 0)
-                r:SetBarColor()
-                r.bar.text:SetText((lvl and lvl > 0) and (lvl.."/300") or "—")
+                
+                -- Color-coded profession level text and bar
+                if lvl and lvl > 0 then
+                  local r_val, g_val, b_val = CB.getProfessionLevelColor(lvl)
+                  r:SetBarColor(r_val, g_val, b_val)  -- Set bar color to match level
+                  local colorCode = string.format("|cff%02x%02x%02x", r_val * 255, g_val * 255, b_val * 255)
+                  r.bar.text:SetText(colorCode .. lvl .. "/300|r")
+                else
+                  r:SetBarColor()  -- Default blue color for no skill
+                  r.bar.text:SetText("—")
+                end
 
                 -- Info
                 r.col3:ClearAllPoints(); r.col3:SetPoint("LEFT", r.bar, "RIGHT", 8, 0); r.col3:SetWidth(wInfo)
