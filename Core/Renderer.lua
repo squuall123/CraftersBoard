@@ -33,7 +33,7 @@ local function AttachRowTooltip(row)
       title = title .. " |cffaaaaaa(Guild)|r"
     end
     
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetText(title, 1,1,1)
     GameTooltip:AddLine("Left-click to whisper | Right-click for actions", .9,.9,.9)
     

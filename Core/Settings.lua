@@ -39,7 +39,7 @@ local function mkCheck(name, parent, label, tooltip, getter, setter, x, y)
   if txt then txt:SetText(label) end
   cb:SetScript("OnEnter", function(self)
     if not tooltip or tooltip == "" then return end
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetText(label, 1,1,1)
     GameTooltip:AddLine(tooltip, .9,.9,.9, true)
     GameTooltip:Show()
@@ -70,7 +70,7 @@ local function mkEdit(name, parent, width, x, y, label, tooltip, get, set)
   eb:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -4)
   eb:SetScript("OnEnter", function(self)
     if not tooltip or tooltip=="" then return end
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetText(label, 1,1,1)
     GameTooltip:AddLine(tooltip, .9,.9,.9, true)
     GameTooltip:Show()

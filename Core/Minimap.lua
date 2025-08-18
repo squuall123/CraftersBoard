@@ -72,7 +72,7 @@ local function createMinimapButton()
 
   -- Tooltip
   b:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetText("CraftersBoard", 1,1,1)
     GameTooltip:AddLine("Left-click: toggle window", .9,.9,.9)
     GameTooltip:AddLine("Right-click: switch tab", .9,.9,.9)
