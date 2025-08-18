@@ -158,7 +158,8 @@ end
 function createUI()
   if UI.frame then return end
 
-  local f = CreateFrame("Frame", "CraftersBoardFrame", UIParent, "BasicFrameTemplateWithInset")
+  -- Create modern frameless window
+  local f = CreateFrame("Frame", "CraftersBoardFrame", UIParent)
   f:SetSize(840, 420)
   f:SetPoint("CENTER")
   f:SetMovable(true)
@@ -166,17 +167,17 @@ function createUI()
   f:RegisterForDrag("LeftButton")
   f:Hide()
   
-  -- Modern dark transparent background
+  -- Modern dark glass-morphism background
   SetBackdropCompat(f, {
-    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Glues\\Common\\TextPanel-Border",
     tile = true,
     tileSize = 32,
-    edgeSize = 32,
-    insets = { left = 11, right = 12, top = 12, bottom = 11 }
+    edgeSize = 16,
+    insets = { left = 8, right = 8, top = 8, bottom = 8 }
   })
-  SetBackdropColorCompat(f, 0.1, 0.1, 0.15, 0.9)  -- Dark blue-gray with transparency
-  SetBackdropBorderColorCompat(f, 0.4, 0.4, 0.5, 1.0)  -- Subtle border
+  SetBackdropColorCompat(f, 0.05, 0.08, 0.12, 0.95)  -- Deep dark blue with high transparency
+  SetBackdropBorderColorCompat(f, 0.2, 0.4, 0.8, 0.8)  -- Subtle blue glow border
 
   if UISpecialFrames then tinsert(UISpecialFrames, f:GetName()) end
 
@@ -196,40 +197,194 @@ function createUI()
 
   SetupResizeHandles(f)
 
-  f.title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  f.title:SetPoint("LEFT", f.TitleBg, "LEFT", 6, 0)
+  -- Modern title bar
+  local titleBar = CreateFrame("Frame", nil, f)
+  titleBar:SetHeight(32)
+  titleBar:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+  titleBar:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
+  
+  -- Title bar background with gradient effect
+  SetBackdropCompat(titleBar, {
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    tile = true,
+    tileSize = 16
+  })
+  SetBackdropColorCompat(titleBar, 0.1, 0.15, 0.25, 0.9)
+  
+  -- Modern title text
+  f.title = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  f.title:SetPoint("LEFT", titleBar, "LEFT", 16, 0)
   f.title:SetText("CraftersBoard — Workers")
+  f.title:SetTextColor(0.9, 0.9, 1.0, 1.0)  -- Slight blue tint
+  
+  -- Modern close button
+  local closeBtn = CreateFrame("Button", nil, titleBar)
+  closeBtn:SetSize(20, 20)
+  closeBtn:SetPoint("RIGHT", titleBar, "RIGHT", -8, 0)
+  closeBtn:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
+  closeBtn:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
+  closeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight", "ADD")
+  closeBtn:SetScript("OnClick", function() f:Hide() end)
+  
+  -- Separator line under title
+  local separator = titleBar:CreateTexture(nil, "OVERLAY")
+  separator:SetHeight(1)
+  separator:SetPoint("BOTTOMLEFT", titleBar, "BOTTOMLEFT", 8, 0)
+  separator:SetPoint("BOTTOMRIGHT", titleBar, "BOTTOMRIGHT", -8, 0)
+  separator:SetColorTexture(0.3, 0.5, 0.9, 0.6)
 
-  -- Create tabs with profession icons
-  local tabTemplate = "CharacterFrameTabButtonTemplate"
-  local tab1 = CreateFrame("Button", f:GetName().."Tab1", f, tabTemplate)
+  -- Modern tab container
+  local tabContainer = CreateFrame("Frame", nil, f)
+  tabContainer:SetHeight(28)
+  tabContainer:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 8, -4)
+  tabContainer:SetPoint("TOPRIGHT", titleBar, "BOTTOMRIGHT", -8, -4)
+  
+  -- Create modern flat tabs
+  local tabTemplate = "TabButtonTemplate"
+  local tab1 = CreateFrame("Button", f:GetName().."Tab1", tabContainer, tabTemplate)
   tab1:SetID(1); tab1:SetText("⚒ Workers")
-  tab1:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 12, -8)
-
-  local tab2 = CreateFrame("Button", f:GetName().."Tab2", f, tabTemplate)
+  tab1:SetPoint("LEFT", tabContainer, "LEFT", 0, 0)
+  tab1:SetSize(120, 24)
+  
+  local tab2 = CreateFrame("Button", f:GetName().."Tab2", tabContainer, tabTemplate)
   tab2:SetID(2); tab2:SetText("🔍 Looking For")
-  tab2:SetPoint("LEFT", tab1, "RIGHT", -16, 0)
+  tab2:SetPoint("LEFT", tab1, "RIGHT", 2, 0)
+  tab2:SetSize(140, 24)
 
-  local tab3 = CreateFrame("Button", f:GetName().."Tab3", f, tabTemplate)
+  local tab3 = CreateFrame("Button", f:GetName().."Tab3", tabContainer, tabTemplate)
   tab3:SetID(3); tab3:SetText("🏛 Guild Workers")
-  tab3:SetPoint("LEFT", tab2, "RIGHT", -16, 0)
+  tab3:SetPoint("LEFT", tab2, "RIGHT", 2, 0)
+  tab3:SetSize(140, 24)
+  
+  -- Style tabs with modern appearance
+  for _, tab in ipairs({tab1, tab2, tab3}) do
+    -- Modern tab styling
+    SetBackdropCompat(tab, {
+      bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+      tile = true,
+      tileSize = 16,
+      insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    SetBackdropColorCompat(tab, 0.08, 0.12, 0.2, 0.8)
+    
+    local tabText = tab:GetFontString()
+    if tabText then
+      tabText:SetTextColor(0.8, 0.8, 0.9, 1.0)
+    end
+  end
 
   if PanelTemplates_SetNumTabs then PanelTemplates_SetNumTabs(f, 3) end
 
-  -- Create scroll frame and content (match original positioning exactly)
-  local scroll = CreateFrame("ScrollFrame", f:GetName().."Scroll", f, "UIPanelScrollFrameTemplate")
-  scroll:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -96)
-  scroll:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -26, 12)
-  scroll:SetFrameStrata("DIALOG")
+  -- Modern search area
+  local searchArea = CreateFrame("Frame", nil, f)
+  searchArea:SetHeight(32)
+  searchArea:SetPoint("TOPLEFT", tabContainer, "BOTTOMLEFT", 0, -8)
+  searchArea:SetPoint("TOPRIGHT", tabContainer, "BOTTOMRIGHT", 0, -8)
   
-  -- Modern dark background for scroll area
-  SetBackdropCompat(scroll, {
+  -- Search area background
+  SetBackdropCompat(searchArea, {
     bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
     tile = true,
     tileSize = 16,
-    insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
   })
-  SetBackdropColorCompat(scroll, 0.05, 0.05, 0.1, 0.8)  -- Very dark background for content area
+  SetBackdropColorCompat(searchArea, 0.03, 0.05, 0.08, 0.7)
+  
+  -- Create modern search box
+  local search = CreateFrame("EditBox", nil, searchArea, "InputBoxTemplate")
+  search:SetSize(320, 24)
+  search:SetPoint("LEFT", searchArea, "LEFT", 12, 0)
+  search:SetAutoFocus(false)
+  
+  -- Modern dark styling for search box
+  SetBackdropCompat(search, {
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 12,
+    insets = { left = 6, right = 6, top = 6, bottom = 6 }
+  })
+  SetBackdropColorCompat(search, 0.08, 0.12, 0.18, 0.95)
+  SetBackdropBorderColorCompat(search, 0.2, 0.4, 0.8, 0.6)
+  
+  -- Search placeholder text
+  local searchPlaceholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  searchPlaceholder:SetPoint("LEFT", search, "LEFT", 8, 0)
+  searchPlaceholder:SetText("Search players, professions, or messages...")
+  searchPlaceholder:SetTextColor(0.5, 0.5, 0.6, 1.0)
+  
+  -- Modern button styling function
+  local function styleModernButton(btn, width)
+    btn:SetSize(width or 80, 24)
+    SetBackdropCompat(btn, {
+      bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+      tile = true,
+      tileSize = 16,
+      edgeSize = 12,
+      insets = { left = 6, right = 6, top = 6, bottom = 6 }
+    })
+    SetBackdropColorCompat(btn, 0.1, 0.2, 0.4, 0.9)
+    SetBackdropBorderColorCompat(btn, 0.3, 0.5, 0.9, 0.8)
+    
+    local btnText = btn:GetFontString()
+    if btnText then
+      btnText:SetTextColor(0.9, 0.9, 1.0, 1.0)
+    end
+  end
+  
+  -- Search functionality
+  search:SetScript("OnEnterPressed", function(self) 
+    CRAFTERSBOARD_DB.filters.search = CB.trim(self:GetText():lower() or "")
+    UI.Force()
+    self:ClearFocus() 
+  end)
+  search:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  search:SetScript("OnEditFocusGained", function(self)
+    if self:GetText() == "" then
+      searchPlaceholder:Hide()
+    end
+  end)
+  search:SetScript("OnEditFocusLost", function(self)
+    if self:GetText() == "" then
+      searchPlaceholder:Show()
+    end
+  end)
+  search:SetScript("OnTextChanged", function(self)
+    if self:GetText() == "" then
+      searchPlaceholder:Show()
+    else
+      searchPlaceholder:Hide()
+    end
+    CRAFTERSBOARD_DB.filters.search = CB.trim(self:GetText():lower() or "")
+    if UI.Force then UI.Force() end
+  end)
+  search:SetText(CRAFTERSBOARD_DB.filters.search or "")
+  if search:GetText() ~= "" then
+    searchPlaceholder:Hide()
+  end
+  
+  -- Store search reference
+  UI.search = search
+  
+  -- Modern content area with scroll frame
+  local scroll = CreateFrame("ScrollFrame", f:GetName().."Scroll", f, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", searchArea, "BOTTOMLEFT", 8, -8)
+  scroll:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -26, 12)
+  scroll:SetFrameStrata("DIALOG")
+  
+  -- Modern dark background for scroll area with inner shadow effect
+  SetBackdropCompat(scroll, {
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 12,
+    insets = { left = 8, right = 8, top = 8, bottom = 8 }
+  })
+  SetBackdropColorCompat(scroll, 0.02, 0.03, 0.06, 0.9)  -- Very dark content area
+  SetBackdropBorderColorCompat(scroll, 0.15, 0.25, 0.4, 0.7)  -- Subtle inner border
   
   local content = CreateFrame("Frame", nil, scroll)
   content:SetSize(1, 1)
@@ -243,55 +398,18 @@ function createUI()
   
   UI.scroll = scroll
   UI.content = content
-
-  -- Create search box (match original positioning)
-  local search = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
-  search:SetSize(300, 24)
-  search:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -64)
-  search:SetAutoFocus(false)
   
-  -- Modern dark styling for search box
-  SetBackdropCompat(search, {
-    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = true,
-    tileSize = 16,
-    edgeSize = 16,
-    insets = { left = 4, right = 4, top = 4, bottom = 4 }
-  })
-  SetBackdropColorCompat(search, 0.1, 0.1, 0.15, 0.9)
-  SetBackdropBorderColorCompat(search, 0.5, 0.5, 0.6, 1.0)
-  search:SetScript("OnEnterPressed", function(self) 
-    CRAFTERSBOARD_DB.filters.search = CB.trim(self:GetText():lower() or "")
-    UI.Force()
-    self:ClearFocus() 
-  end)
-  search:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-  search:SetScript("OnTextChanged", function(self)
-    -- Optional: Update search in real-time (more responsive than original)
-    CRAFTERSBOARD_DB.filters.search = CB.trim(self:GetText():lower() or "")
-    if UI.Force then UI.Force() end
-  end)
-  search:SetText(CRAFTERSBOARD_DB.filters.search or "")
-  UI.search = search
-
-  -- Search label
-  local lblSearch = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  lblSearch:SetPoint("BOTTOMLEFT", search, "TOPLEFT", 4, 4)
-  lblSearch:SetText("Search (text, name, or profession):")
-
   -- Refresh button
-  local btnRefresh = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-  btnRefresh:SetSize(80, 22)
-  btnRefresh:SetPoint("LEFT", search, "RIGHT", 10, 0)
+  local btnRefresh = CreateFrame("Button", nil, searchArea, "UIPanelButtonTemplate")
+  btnRefresh:SetPoint("LEFT", search, "RIGHT", 12, 0)
   btnRefresh:SetText("Refresh")
   btnRefresh:SetScript("OnClick", function() UI.Force() end)
+  styleModernButton(btnRefresh, 80)
   UI.btnRefresh = btnRefresh
 
-  -- Create guild scan button and label (for Guild Workers tab)
-  local btnGuildScan = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-  btnGuildScan:SetSize(110, 22)
-  btnGuildScan:SetPoint("LEFT", btnRefresh, "RIGHT", 10, 0)
+  -- Guild scan button
+  local btnGuildScan = CreateFrame("Button", nil, searchArea, "UIPanelButtonTemplate")
+  btnGuildScan:SetPoint("LEFT", btnRefresh, "RIGHT", 8, 0)
   btnGuildScan:SetText("Scan Guild")
   btnGuildScan:SetScript("OnClick", function()
     if not IsInGuild or not IsInGuild() then
@@ -301,17 +419,18 @@ function createUI()
     if GuildRoster then GuildRoster() end
     if CB.rebuildGuildWorkers then 
       CB.rebuildGuildWorkers() 
-      -- Debug: show guild scan results
       local members = CRAFTERSBOARD_DB.guildScan.members or {}
       CB.DebugPrint("Guild scan complete. Found " .. #members .. " members with professions.")
     end
     if UI.Force then UI.Force() end
   end)
   btnGuildScan:Hide()
+  styleModernButton(btnGuildScan, 100)
   
-  local lblScan = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  local lblScan = searchArea:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   lblScan:SetPoint("LEFT", btnGuildScan, "RIGHT", 8, 0)
   lblScan:SetText("Last scan: —")
+  lblScan:SetTextColor(0.7, 0.7, 0.8, 1.0)
   lblScan:Hide()
   
   UI.btnGuildScan = btnGuildScan
@@ -342,11 +461,31 @@ function createUI()
     end
   end
 
-  -- Tab switching function
+  -- Tab switching function with modern styling
   local function setActiveTab(id)
     UI.activeKind = (id == 1) and "PROVIDER" or (id == 2 and "REQUESTER" or "GUILD")
     f.selectedTab = id
     CRAFTERSBOARD_DB.lastTab = id
+    
+    -- Update tab appearance
+    for i, tab in ipairs({tab1, tab2, tab3}) do
+      if i == id then
+        -- Active tab styling
+        SetBackdropColorCompat(tab, 0.15, 0.25, 0.45, 1.0)
+        local tabText = tab:GetFontString()
+        if tabText then
+          tabText:SetTextColor(1.0, 1.0, 1.0, 1.0)
+        end
+      else
+        -- Inactive tab styling
+        SetBackdropColorCompat(tab, 0.08, 0.12, 0.2, 0.8)
+        local tabText = tab:GetFontString()
+        if tabText then
+          tabText:SetTextColor(0.8, 0.8, 0.9, 1.0)
+        end
+      end
+    end
+    
     if PanelTemplates_SetTab then PanelTemplates_SetTab(f, id) end
     f.title:SetText("CraftersBoard — "..
       (UI.activeKind == "PROVIDER" and "Workers" or UI.activeKind == "REQUESTER" and "Looking For" or "Guild Workers"))
