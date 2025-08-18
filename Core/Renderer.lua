@@ -23,12 +23,19 @@ function CB.classColorWrap(name, classFile)
   return name
 end
 
+-- Helper function to clean player names (remove realm suffix)
+function CB.cleanPlayerName(name)
+  if not name or name == "" then return name end
+  -- Remove realm suffix (everything after the first hyphen)
+  return name:match("^([^-]+)") or name
+end
+
 -- Tooltip handling for rows
 local function AttachRowTooltip(row)
   row:SetScript("OnEnter", function(self)
     if not self.player then return end
     
-    local title = self.player
+    local title = CB.cleanPlayerName(self.player)
     if self.guild then
       title = title .. " |cffaaaaaa(Guild)|r"
     end
@@ -54,10 +61,10 @@ function UI.ShowRowMenu(row)
   local hasMsg  = not isGuild and row.entry and row.entry.message
 
   -- Clean player name (remove realm suffix for Classic compatibility)
-  local cleanName = name:match("^([^-]+)") or name
+  local cleanName = CB.cleanPlayerName(name)
 
   local menu = {
-    { text = name, isTitle = true, notCheckable = true },
+    { text = cleanName, isTitle = true, notCheckable = true },
     { text = "Whisper", notCheckable = true, func = function()
       ChatFrame_OpenChat("/w " .. cleanName .. " ", SELECTED_DOCK_FRAME)
     end },
@@ -259,7 +266,7 @@ function UI.AcquireRow(parent)
     b:SetScript("OnClick", function(self, button)
       if button == "LeftButton" then
         if self.player and self.player ~= "" then
-          ChatFrame_OpenChat("/w "..self.player.." ", SELECTED_DOCK_FRAME)
+          ChatFrame_OpenChat("/w "..CB.cleanPlayerName(self.player).." ", SELECTED_DOCK_FRAME)
         end
       else
         UI.ShowRowMenu(self)
@@ -385,7 +392,7 @@ function UI.render()
 
                 -- Name without redundant profession icon (already in header)
                 r.col2:ClearAllPoints(); r.col2:SetPoint("LEFT", 6, 0); r.col2:SetWidth(wName)
-                r.col2:SetText(CB.classColorWrap(m.name or "?", m.classFile))
+                r.col2:SetText(CB.classColorWrap(CB.cleanPlayerName(m.name) or "?", m.classFile))
 
                 -- Rank
                 r.col1:ClearAllPoints(); r.col1:SetPoint("LEFT", r.col2, "RIGHT", 8, 0); r.col1:SetWidth(wRank)
@@ -478,7 +485,7 @@ function UI.render()
 
                 r.col1:SetText(CB.agoStr(e.time))
                 -- Remove redundant profession icon since entries are already grouped by profession
-                r.col2:SetText(e.player or "?")
+                r.col2:SetText(CB.cleanPlayerName(e.player) or "?")
                 r.col3:SetText(e.channel or "")
                 -- Parse any remaining icon markup in the message
                 local message = e.message or ""
