@@ -1,0 +1,28 @@
+## Interface: 11507
+## Title: CraftersBoard
+## Notes: Lists crafting service offers/requests by parsing chat (like LFG Bulletin Board, but for professions)
+## Author: Squall#69
+## Version: 1.0.0
+## SavedVariables: CRAFTERSBOARD_DB
+
+# Core initialization and utilities
+Core\Init.lua
+Core\Database.lua
+Core\Professions.lua
+Core\ChatParser.lua
+Core\Mute.lua
+Core\EntryManager.lua
+Core\Auctionator.lua
+
+# UI and interface components
+Core\UI.lua
+Core\Renderer.lua
+Core\Settings.lua
+Core\Minimap.lua
+
+# Event handling and commands
+Core\Events.lua
+Core\Commands.lua
+
+# Main addon file (coordination only)
+CraftersBoard.lua
