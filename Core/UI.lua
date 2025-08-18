@@ -332,14 +332,13 @@ function createUI()
   })
   SetBackdropColorCompat(searchArea, 0.03, 0.05, 0.08, 0.7)
   
-  -- Create modern search box (repositioned for better layout)
-  local search = CreateFrame("EditBox", nil, searchArea, "InputBoxTemplate")
-  search:SetSize(360, 24)
-  search:SetPoint("LEFT", searchArea, "LEFT", 12, 0)
-  search:SetAutoFocus(false)
+  -- Create modern search box container
+  local searchContainer = CreateFrame("Frame", nil, searchArea)
+  searchContainer:SetSize(360, 24)
+  searchContainer:SetPoint("LEFT", searchArea, "LEFT", 12, 0)
   
-  -- Modern dark styling for search box
-  SetBackdropCompat(search, {
+  -- Modern dark styling for search container
+  SetBackdropCompat(searchContainer, {
     bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
     tile = true,
@@ -347,12 +346,64 @@ function createUI()
     edgeSize = 12,
     insets = { left = 6, right = 6, top = 6, bottom = 6 }
   })
-  SetBackdropColorCompat(search, 0.08, 0.12, 0.18, 0.95)
-  SetBackdropBorderColorCompat(search, 0.2, 0.4, 0.8, 0.6)
+  SetBackdropColorCompat(searchContainer, 0.08, 0.12, 0.18, 0.95)
+  SetBackdropBorderColorCompat(searchContainer, 0.2, 0.4, 0.8, 0.6)
   
-  -- Search placeholder text
+  -- Search scope icon (magnifying glass)
+  local searchIcon = searchContainer:CreateTexture(nil, "OVERLAY")
+  searchIcon:SetSize(16, 16)
+  searchIcon:SetPoint("LEFT", searchContainer, "LEFT", 8, 0)
+  searchIcon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_02")
+  searchIcon:SetVertexColor(0.6, 0.7, 0.8, 0.8)
+  
+  -- Create modern search box (repositioned for icons)
+  local search = CreateFrame("EditBox", nil, searchContainer)
+  search:SetSize(310, 16)  -- Reduced width to make room for icons
+  search:SetPoint("LEFT", searchIcon, "RIGHT", 6, 0)
+  search:SetPoint("RIGHT", searchContainer, "RIGHT", -30, 0)  -- Leave space for clear button
+  search:SetAutoFocus(false)
+  search:SetFontObject("GameFontNormal")
+  search:SetTextColor(0.9, 0.9, 1.0, 1.0)
+  
+  -- Clear button (X to delete text)
+  local clearButton = CreateFrame("Button", nil, searchContainer)
+  clearButton:SetSize(16, 16)
+  clearButton:SetPoint("RIGHT", searchContainer, "RIGHT", -8, 0)
+  
+  -- Clear button texture
+  local clearIcon = clearButton:CreateTexture(nil, "OVERLAY")
+  clearIcon:SetAllPoints()
+  clearIcon:SetTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
+  clearIcon:SetVertexColor(0.6, 0.6, 0.7, 0.8)
+  
+  -- Clear button hover effect
+  clearButton:SetScript("OnEnter", function()
+    clearIcon:SetVertexColor(1.0, 0.4, 0.4, 1.0)  -- Red on hover
+  end)
+  clearButton:SetScript("OnLeave", function()
+    clearIcon:SetVertexColor(0.6, 0.6, 0.7, 0.8)
+  end)
+  
+  -- Clear button functionality
+  clearButton:SetScript("OnClick", function()
+    search:SetText("")
+    search:ClearFocus()
+    CRAFTERSBOARD_DB.filters.search = ""
+    if UI.Force then UI.Force() end
+  end)
+  
+  -- Show/hide clear button based on text content
+  local function updateClearButton()
+    if search:GetText() and search:GetText() ~= "" then
+      clearButton:Show()
+    else
+      clearButton:Hide()
+    end
+  end
+  
+  -- Search placeholder text (adjusted position for icon)
   local searchPlaceholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  searchPlaceholder:SetPoint("LEFT", search, "LEFT", 8, 0)
+  searchPlaceholder:SetPoint("LEFT", search, "LEFT", 2, 0)
   searchPlaceholder:SetText("Search players, professions, or messages...")
   searchPlaceholder:SetTextColor(0.5, 0.5, 0.6, 1.0)
   
@@ -399,6 +450,7 @@ function createUI()
     else
       searchPlaceholder:Hide()
     end
+    updateClearButton()  -- Update clear button visibility
     CRAFTERSBOARD_DB.filters.search = CB.trim(self:GetText():lower() or "")
     if UI.Force then UI.Force() end
   end)
@@ -406,6 +458,7 @@ function createUI()
   if search:GetText() ~= "" then
     searchPlaceholder:Hide()
   end
+  updateClearButton()  -- Initial clear button state
   
   -- Store search reference
   UI.search = search
@@ -633,9 +686,9 @@ function createUI()
   UI.scroll = scroll
   UI.content = content
   
-  -- Guild scan button (repositioned after removing refresh button)
+  -- Guild scan button (repositioned to the right side of search area)
   local btnGuildScan = CreateFrame("Button", nil, searchArea, "UIPanelButtonTemplate")
-  btnGuildScan:SetPoint("LEFT", search, "RIGHT", 12, 0)
+  btnGuildScan:SetPoint("RIGHT", searchArea, "RIGHT", -12, 0)
   btnGuildScan:SetText("Scan Guild")
   btnGuildScan:SetScript("OnClick", function()
     if not IsInGuild or not IsInGuild() then
@@ -654,7 +707,7 @@ function createUI()
   styleModernButton(btnGuildScan, 100)
   
   local lblScan = searchArea:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  lblScan:SetPoint("LEFT", btnGuildScan, "RIGHT", 8, 0)
+  lblScan:SetPoint("RIGHT", btnGuildScan, "LEFT", -8, 0)
   lblScan:SetText("Last scan: —")
   lblScan:SetTextColor(0.7, 0.7, 0.8, 1.0)
   lblScan:Hide()
