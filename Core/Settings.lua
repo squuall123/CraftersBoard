@@ -38,27 +38,12 @@ end
 function createOptionsPanel()
   if UI.optionsPanel then return end
 
-  -- Parentless; Blizzard options will parent on add
+  -- Create panel exactly like Blizzard interface options
   local panel = CreateFrame("Frame", "CraftersBoardOptionsPanel")
   panel.name = "CraftersBoard"
-  panel:SetSize(700, 650) -- Increased size for better visibility
   panel:Hide()
   
-  -- Fully transparent background (no visible background)
-  local bg = panel:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints(panel)
-  bg:SetColorTexture(0, 0, 0, 0) -- Completely transparent
-  
-  -- No visible border
-  local border = panel:CreateTexture(nil, "BORDER")
-  border:SetAllPoints(panel)
-  border:SetColorTexture(0, 0, 0, 0) -- Completely transparent border
-  
-  -- No visible inner background
-  local innerBg = panel:CreateTexture(nil, "ARTWORK", nil, -1)
-  innerBg:SetPoint("TOPLEFT", panel, "TOPLEFT", 2, -2)
-  innerBg:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -2, 2)
-  innerBg:SetColorTexture(0, 0, 0, 0) -- Completely transparent inner background
+  -- No custom background - let Blizzard handle it
   
   -- Add panel event handlers
   panel:SetScript("OnShow", function(self)
@@ -71,64 +56,41 @@ function createOptionsPanel()
   
   UI.optionsPanel = panel
 
-  -- Create scroll frame for the settings content
-  local scrollFrame = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
-  scrollFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -8)
-  scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 8) -- Account for scroll bar
+  -- Use modern Legion-era scroll frame (WoW Classic has Legion 7.3.5 engine)
+  local scrollFrame = CreateFrame("ScrollFrame", "CraftersBoardSettingsScrollFrame", panel, "UIPanelScrollFrameTemplate")
+  scrollFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4)
+  scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -32, 4)
   
-  -- Create scrollable content frame
+  -- The UIPanelScrollFrameTemplate automatically creates the scroll bar
+  -- Just make sure it's positioned correctly
+  local scrollBar = scrollFrame.ScrollBar or _G[scrollFrame:GetName().."ScrollBar"]
+  if scrollBar then
+    scrollBar:ClearAllPoints()
+    scrollBar:SetPoint("TOPLEFT", scrollFrame, "TOPRIGHT", 6, -16)
+    scrollBar:SetPoint("BOTTOMLEFT", scrollFrame, "BOTTOMRIGHT", 6, 16)
+  end
+  
+  -- Create scrollable content frame with proper modern layout
   local scrollContent = CreateFrame("Frame", nil, scrollFrame)
-  scrollContent:SetSize(scrollFrame:GetWidth() - 20, 1200) -- Increased height for all content
+  scrollContent:SetSize(1, 1) -- Will be resized later
   scrollFrame:SetScrollChild(scrollContent)
   
-  -- Store reference to scroll frame for later use
-  UI.settingsScrollFrame = scrollFrame
-  UI.settingsScrollContent = scrollContent
-  
-  -- Enhanced mouse wheel scrolling with improved step size
+  -- Modern scrolling behavior
+  scrollFrame:EnableMouseWheel(true)
   scrollFrame:SetScript("OnMouseWheel", function(self, delta)
-    local scrollStep = 30 -- Larger step for smoother scrolling
-    local newValue = self:GetVerticalScroll() - (delta * scrollStep)
-    local maxScroll = self:GetVerticalScrollRange()
-    
+    local newValue = self:GetVerticalScroll() - (delta * 20)
     if newValue < 0 then
       newValue = 0
-    elseif newValue > maxScroll then
-      newValue = maxScroll
+    elseif newValue > self:GetVerticalScrollRange() then
+      newValue = self:GetVerticalScrollRange()
     end
-    
     self:SetVerticalScroll(newValue)
   end)
-  scrollFrame:EnableMouseWheel(true)
   
-  -- Add keyboard navigation support
-  scrollFrame:SetScript("OnKeyDown", function(self, key)
-    if key == "UP" then
-      local newValue = self:GetVerticalScroll() - 20
-      if newValue < 0 then newValue = 0 end
-      self:SetVerticalScroll(newValue)
-    elseif key == "DOWN" then
-      local newValue = self:GetVerticalScroll() + 20
-      local maxScroll = self:GetVerticalScrollRange()
-      if newValue > maxScroll then newValue = maxScroll end
-      self:SetVerticalScroll(newValue)
-    elseif key == "PAGEUP" then
-      local newValue = self:GetVerticalScroll() - 100
-      if newValue < 0 then newValue = 0 end
-      self:SetVerticalScroll(newValue)
-    elseif key == "PAGEDOWN" then
-      local newValue = self:GetVerticalScroll() + 100
-      local maxScroll = self:GetVerticalScrollRange()
-      if newValue > maxScroll then newValue = maxScroll end
-      self:SetVerticalScroll(newValue)
-    elseif key == "HOME" then
-      self:SetVerticalScroll(0)
-    elseif key == "END" then
-      self:SetVerticalScroll(self:GetVerticalScrollRange())
-    end
-  end)
-  scrollFrame:EnableKeyboard(true)
-  scrollFrame:SetPropagateKeyboardInput(true)
+  -- Store references
+  UI.settingsScrollFrame = scrollFrame
+  UI.settingsScrollContent = scrollContent
+  UI.settingsPanel = panel
   
   -- Auto-resize content based on actual content height
   local function UpdateContentSize()
@@ -143,17 +105,13 @@ function createOptionsPanel()
       end
     end
     -- Add padding and convert to positive height
-    local contentHeight = math.max(1000, math.abs(maxY) + 150)
-    scrollContent:SetHeight(contentHeight)
+    local contentHeight = math.max(600, math.abs(maxY) + 100)
+    local contentWidth = scrollFrame:GetWidth() - 20
+    scrollContent:SetSize(contentWidth, contentHeight)
   end
   
   -- Store the update function for external use
   UI.UpdateSettingsContentSize = UpdateContentSize
-  
-  -- No visible background on scroll content
-  local scrollBg = scrollContent:CreateTexture(nil, "BACKGROUND")
-  scrollBg:SetAllPoints(scrollContent)
-  scrollBg:SetColorTexture(0, 0, 0, 0) -- Completely transparent
   
   -- Update content size after all controls are created
   C_Timer.After(0.2, function()
@@ -162,12 +120,11 @@ function createOptionsPanel()
     C_Timer.After(0.1, UpdateContentSize)
   end)
 
-  -- Helper functions that now reference scrollContent instead of panel
+  -- Helper functions exactly like Blizzard interface options
   local function ScrollTitle(text, x, y)
     local t = scrollContent:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     t:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", x, y)
-    t:SetText("|cffffffff" .. text .. "|r")
-    t:SetTextColor(1, 1, 1, 1) -- Bright white for section headers
+    t:SetText(text)
     t:SetJustifyH("LEFT")
     return t
   end
@@ -175,37 +132,65 @@ function createOptionsPanel()
   local function ScrollSubText(text, x, y)
     local t = scrollContent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     t:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", x, y)
-    t:SetJustifyH("LEFT"); t:SetJustifyV("TOP")
-    t:SetText("|cffcccccc" .. text .. "|r")
-    t:SetTextColor(0.8, 0.8, 0.8, 1) -- Slightly dimmed for descriptions
+    t:SetJustifyH("LEFT")
+    t:SetJustifyV("TOP")
+    t:SetText(text)
     t:SetWordWrap(true)
-    t:SetWidth(600) -- Limit width for better text wrapping
+    t:SetWidth(500)
     return t
   end
 
-  -- Helper function to create section separators
+  -- Standard separator
   local function ScrollSeparator(x, y, width)
-    local line = scrollContent:CreateTexture(nil, "ARTWORK")
-    line:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", x, y)
-    line:SetSize(width or 600, 1)
-    line:SetColorTexture(0, 0, 0, 0) -- Completely transparent separator (invisible)
-    return line
+    local spacer = CreateFrame("Frame", nil, scrollContent)
+    spacer:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", x, y)
+    spacer:SetSize(width or 500, 16)
+    return spacer
   end
 
   local function ScrollCheck(name, label, tooltip, getter, setter, x, y)
-    local cb = CreateFrame("CheckButton", name, scrollContent, "InterfaceOptionsCheckButtonTemplate")
+    -- Use SettingsCheckBoxTemplate for modern Legion UI - fallback to older template if not available
+    local template = "SettingsCheckBoxTemplate"
+    local cb = CreateFrame("CheckButton", name, scrollContent, template)
+    
+    -- Fallback if modern template doesn't exist
+    if not cb then
+      cb = CreateFrame("CheckButton", name, scrollContent, "OptionsBaseCheckButtonTemplate")
+    end
+    
     cb:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", x, y)
-    local txt = _G[name.."Text"]
-    if txt then txt:SetText(label) end
+    
+    -- Set label using Legion's modern system
+    if cb.Text then
+      cb.Text:SetText(label)
+    else
+      -- Fallback for older templates
+      local txt = _G[name.."Text"]
+      if txt then 
+        txt:SetText(label)
+      else
+        txt = cb:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        txt:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+        txt:SetText(label)
+        cb.Text = txt
+      end
+    end
+    
+    -- Modern tooltip support with improved styling
     cb:SetScript("OnEnter", function(self)
       if not tooltip or tooltip == "" then return end
       GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-      GameTooltip:SetText(label, 1,1,1)
-      GameTooltip:AddLine(tooltip, .9,.9,.9, true)
+      GameTooltip:SetText(label, 1, 1, 1, 1, true)
+      GameTooltip:AddLine(tooltip, nil, nil, nil, true)
       GameTooltip:Show()
     end)
-    cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    cb:SetScript("OnShow", function(self) self:SetChecked(getter() and true or false) end)
+    cb:SetScript("OnLeave", function() 
+      GameTooltip:Hide()
+    end)
+    
+    cb:SetScript("OnShow", function(self) 
+      self:SetChecked(getter() and true or false) 
+    end)
     cb:SetScript("OnClick", function(self)
       local v = self:GetChecked() and true or false
       setter(v)
@@ -224,21 +209,29 @@ function createOptionsPanel()
     lbl:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", x, y)
     lbl:SetText(label)
 
+    -- Use standard InputBoxTemplate for clean, traditional styling
     local eb = CreateFrame("EditBox", name, scrollContent, "InputBoxTemplate")
     eb:SetAutoFocus(false)
-    eb:SetSize(width, 24)
+    eb:SetSize(width, 22)
     eb:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -4)
+    
+    -- Modern tooltip support with improved styling
     eb:SetScript("OnEnter", function(self)
-      if not tooltip or tooltip=="" then return end
+      if not tooltip or tooltip == "" then return end
       GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-      GameTooltip:SetText(label, 1,1,1)
-      GameTooltip:AddLine(tooltip, .9,.9,.9, true)
+      GameTooltip:SetText(label, 1, 1, 1, 1, true)
+      GameTooltip:AddLine(tooltip, nil, nil, nil, true)
       GameTooltip:Show()
     end)
-    eb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    eb:SetScript("OnShow", function(self) self:SetText(get() or "") end)
+    eb:SetScript("OnLeave", function() 
+      GameTooltip:Hide()
+    end)
+    
+    eb:SetScript("OnShow", function(self) 
+      self:SetText(get() or "") 
+    end)
     eb:SetScript("OnTextChanged", function(self) 
-      -- Auto-apply for simple text fields, but keep manual apply for complex ones
+      -- Auto-apply for simple text fields
       if label == "Channel hints (comma-separated)" then
         set(self:GetText() or "")
       end
@@ -246,7 +239,7 @@ function createOptionsPanel()
     eb:SetScript("OnEnterPressed", function(self)
       set(self:GetText() or "")
       self:ClearFocus()
-      print("|cff00ff88CraftersBoard|r saved: "..label)
+      print("|cffffff00CraftersBoard|r saved: " .. label)
       if UI and UI.Force then UI.Force() end
     end)
     eb:SetScript("OnEscapePressed", function(self) 
@@ -261,7 +254,7 @@ function createOptionsPanel()
     btn:SetText("Apply")
     btn:SetScript("OnClick", function()
       set(eb:GetText() or "")
-      print("|cff00ff88CraftersBoard|r saved: "..label)
+      print("|cffffff00CraftersBoard|r saved: " .. label)
       if UI and UI.Force then UI.Force() end
     end)
 
@@ -280,15 +273,17 @@ function createOptionsPanel()
     local dropdown = CreateFrame("Frame", name, scrollContent, "UIDropDownMenuTemplate")
     dropdown:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", -15, -4)
     
-    -- Tooltip support
+    -- Modern tooltip support with improved styling
     if tooltip and tooltip ~= "" then
       dropdown:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-        GameTooltip:SetText(label, 1, 1, 1)
-        GameTooltip:AddLine(tooltip, 0.9, 0.9, 0.9, true)
+        GameTooltip:SetText(label, 1, 1, 1, 1, true)
+        GameTooltip:AddLine(tooltip, nil, nil, nil, true)
         GameTooltip:Show()
       end)
-      dropdown:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      dropdown:SetScript("OnLeave", function() 
+        GameTooltip:Hide() 
+      end)
     end
 
     -- Initialize dropdown
@@ -301,7 +296,7 @@ function createOptionsPanel()
         info.func = function()
           setter(option.value)
           UIDropDownMenu_SetSelectedValue(dropdown, option.value)
-          print("|cff00ff88CraftersBoard|r changed " .. label .. " to: " .. option.text)
+          print("|cffffff00CraftersBoard|r changed " .. label .. " to: " .. option.text)
           if UI and UI.Force then UI.Force() end
         end
         info.checked = (getter() == option.value)
@@ -340,42 +335,42 @@ function createOptionsPanel()
     return dropdown, lbl
   end
 
-  -- Create all the settings controls using scroll-aware functions
-  ScrollTitle("CraftersBoard Settings", 20, -20)
-  ScrollSubText("Configure filtering and display options for the addon.", 20, -50)
+  -- Create all the settings controls using standard Blizzard styling
+  ScrollTitle("CraftersBoard Settings", 16, -16)
+  ScrollSubText("Configure filtering and display options for the addon.", 16, -44)
   
-  ScrollSeparator(20, -70, 600)
+  ScrollSeparator(16, -70, 500)
 
   -- General Settings Section
   local sectionY = -90
-  ScrollTitle("General Settings", 20, sectionY)
+  ScrollTitle("General Settings", 16, sectionY)
   
-  -- Create checkboxes with better spacing
+  -- Create checkboxes with standard spacing
   ScrollCheck("CBOptShowMinimap", "Show minimap button", 
     "Toggle the minimap button visibility", 
     function() return CRAFTERSBOARD_DB.minimap.show end,
     function(v) CRAFTERSBOARD_DB.minimap.show = v; if CB.UpdateMinimapButton then CB.UpdateMinimapButton() end end,
-    20, sectionY - 40)
+    16, sectionY - 32)
 
   ScrollCheck("CBOptStrictMode", "Strict filtering", 
     "Drop non-crafting messages more aggressively", 
     function() return CRAFTERSBOARD_DB.filters.strict end,
     function(v) CRAFTERSBOARD_DB.filters.strict = v end,
-    20, sectionY - 70)
+    16, sectionY - 56)
 
   ScrollCheck("CBOptDebugMode", "Enable debug output", 
     "Show debug messages in chat for troubleshooting", 
     function() return CRAFTERSBOARD_DB.debug end,
     function(v) CRAFTERSBOARD_DB.debug = v end,
-    20, sectionY - 100)
+    16, sectionY - 80)
 
   -- Appearance Section
-  local appearanceY = sectionY - 150
-  ScrollSeparator(20, appearanceY + 10, 600)
-  ScrollTitle("Appearance", 20, appearanceY)
+  local appearanceY = sectionY - 120
+  ScrollSeparator(16, appearanceY + 10, 500)
+  ScrollTitle("Appearance", 16, appearanceY)
   
   -- Theme selection dropdown
-  ScrollDropdown("CBOptThemeSelect", 20, appearanceY - 40, "UI Theme", 
+  ScrollDropdown("CBOptThemeSelect", 16, appearanceY - 32, "UI Theme", 
     "Choose a color theme based on Classic WoW expansions",
     {
       { text = "Default Blue", value = "default" },
@@ -394,12 +389,12 @@ function createOptionsPanel()
     end)
 
   -- Filtering Section
-  local filteringY = appearanceY - 120
-  ScrollSeparator(20, filteringY + 10, 600)
-  ScrollTitle("Filtering & Channels", 20, filteringY)
+  local filteringY = appearanceY - 100
+  ScrollSeparator(16, filteringY + 10, 500)
+  ScrollTitle("Filtering & Channels", 16, filteringY)
   
   -- Channel hints input
-  ScrollEdit("CBOptChannelHints", 300, 20, filteringY - 40, "Channel hints (comma-separated)", 
+  ScrollEdit("CBOptChannelHints", 300, 16, filteringY - 32, "Channel hints (comma-separated)", 
     "Channels to monitor for crafting messages (e.g. general,trade,commerce)",
     function() 
       local hints = CRAFTERSBOARD_DB.filters.channelHints or {}
@@ -417,7 +412,7 @@ function createOptionsPanel()
     end)
 
   -- Max entries input
-  ScrollEdit("CBOptMaxEntries", 100, 20, filteringY - 110, "Max entries", 
+  ScrollEdit("CBOptMaxEntries", 100, 16, filteringY - 100, "Max entries", 
     "Maximum number of entries to keep in memory",
     function() return tostring(CRAFTERSBOARD_DB.maxEntries or 300) end,
     function(v)
@@ -426,54 +421,54 @@ function createOptionsPanel()
     end)
 
   -- Request Templates section
-  local templatesY = filteringY - 180
-  ScrollSeparator(20, templatesY + 10, 600)
-  ScrollTitle("Request Message Templates", 20, templatesY)
-  ScrollSubText("Customize the predefined whisper messages for requesting materials and pricing.", 20, templatesY - 25)
+  local templatesY = filteringY - 160
+  ScrollSeparator(16, templatesY + 10, 500)
+  ScrollTitle("Request Message Templates", 16, templatesY)
+  ScrollSubText("Customize the predefined whisper messages for requesting materials and pricing.", 16, templatesY - 24)
 
   -- Ask for mats template
-  ScrollEdit("CBOptAskMatsTemplate", 450, 20, templatesY - 60, "Ask for materials template", 
+  ScrollEdit("CBOptAskMatsTemplate", 450, 16, templatesY - 56, "Ask for materials template", 
     "Template message for asking about required materials",
     function() return CRAFTERSBOARD_DB.requestTemplates.askForMats end,
     function(v) CRAFTERSBOARD_DB.requestTemplates.askForMats = v or CB.DEFAULTS.requestTemplates.askForMats end)
 
   -- Ask for price template  
-  ScrollEdit("CBOptAskPriceTemplate", 450, 20, templatesY - 130, "Ask for price template", 
+  ScrollEdit("CBOptAskPriceTemplate", 450, 16, templatesY - 124, "Ask for price template", 
     "Template message for asking about pricing",
     function() return CRAFTERSBOARD_DB.requestTemplates.askForPrice end,
     function(v) CRAFTERSBOARD_DB.requestTemplates.askForPrice = v or CB.DEFAULTS.requestTemplates.askForPrice end)
 
   -- Utilities section
-  local utilitiesY = templatesY - 200
-  ScrollSeparator(20, utilitiesY + 10, 600)
-  ScrollTitle("Utilities", 20, utilitiesY)
+  local utilitiesY = templatesY - 190
+  ScrollSeparator(16, utilitiesY + 10, 500)
+  ScrollTitle("Utilities", 16, utilitiesY)
   
-  -- Add utility buttons with better spacing
+  -- Add utility buttons with standard Blizzard styling
   local pruneBtn = CreateFrame("Button", nil, scrollContent, "UIPanelButtonTemplate")
   pruneBtn:SetSize(120, 24)
-  pruneBtn:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", 20, utilitiesY - 40)
+  pruneBtn:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", 16, utilitiesY - 32)
   pruneBtn:SetText("Prune Old Entries")
   pruneBtn:SetScript("OnClick", function()
     if CB.pruneEntries then
       local removed = CB.pruneEntries(3600) -- 1 hour
-      print("|cff00ff88CraftersBoard|r Removed " .. removed .. " old entries")
+      print("|cffffff00CraftersBoard|r Removed " .. removed .. " old entries")
       if UI.Force then UI.Force() end
     end
   end)
 
   local clearBtn = CreateFrame("Button", nil, scrollContent, "UIPanelButtonTemplate")
   clearBtn:SetSize(120, 24)
-  clearBtn:SetPoint("LEFT", pruneBtn, "RIGHT", 10, 0)
+  clearBtn:SetPoint("LEFT", pruneBtn, "RIGHT", 8, 0)
   clearBtn:SetText("Clear All Entries")
   clearBtn:SetScript("OnClick", function()
     CRAFTERSBOARD_DB.entries = {}
-    print("|cff00ff88CraftersBoard|r Cleared all entries")
+    print("|cffffff00CraftersBoard|r Cleared all entries")
     if UI.Force then UI.Force() end
   end)
 
   local resetBtn = CreateFrame("Button", nil, scrollContent, "UIPanelButtonTemplate")
   resetBtn:SetSize(120, 24)
-  resetBtn:SetPoint("LEFT", clearBtn, "RIGHT", 10, 0)
+  resetBtn:SetPoint("LEFT", clearBtn, "RIGHT", 8, 0)
   resetBtn:SetText("Reset Settings")
   resetBtn:SetScript("OnClick", function()
     -- Reset to defaults
@@ -482,19 +477,19 @@ function createOptionsPanel()
         CRAFTERSBOARD_DB[k] = (type(v) == "table") and CB.deepcopy(v) or v
       end
     end
-    print("|cff00ff88CraftersBoard|r Settings reset to defaults")
+    print("|cffffff00CraftersBoard|r Settings reset to defaults")
     if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
     if UI.Force then UI.Force() end
   end)
 
   -- Instructions section
-  local instructionsY = utilitiesY - 100
-  ScrollSeparator(20, instructionsY + 10, 600)
-  ScrollTitle("Usage Instructions", 20, instructionsY)
-  ScrollSubText("Use /cb to open the main window, /cb config to open settings, or /cb help for command list.", 20, instructionsY - 30)
-  ScrollSubText("Addon automatically scans chat channels for crafting requests and service offers.", 20, instructionsY - 50)
-  ScrollSubText("Scroll down to see all available settings. Use mouse wheel to scroll in this panel.", 20, instructionsY - 70)
-  ScrollSubText("Click the gear icon in the main window title bar to quickly access these settings.", 20, instructionsY - 90)
+  local instructionsY = utilitiesY - 80
+  ScrollSeparator(16, instructionsY + 10, 500)
+  ScrollTitle("Usage Instructions", 16, instructionsY)
+  ScrollSubText("Use /cb to open the main window, /cb config to open settings, or /cb help for command list.", 16, instructionsY - 24)
+  ScrollSubText("Addon automatically scans chat channels for crafting requests and service offers.", 16, instructionsY - 44)
+  ScrollSubText("Use mouse wheel to scroll in this panel or the scrollbar on the right.", 16, instructionsY - 64)
+  ScrollSubText("Click the gear icon in the main window title bar to quickly access these settings.", 16, instructionsY - 84)
 
   return panel
 end
@@ -521,7 +516,7 @@ function CB.ShowThemeChangeConfirmation(newTheme)
       OnAccept = function(self, data)
         -- Apply the theme change
         CRAFTERSBOARD_DB.theme = data.theme
-        print("|cff00ff88CraftersBoard|r Theme changed to: " .. data.themeName)
+        print("|cffffff00CraftersBoard|r Theme changed to: " .. data.themeName)
         
         -- Reload UI
         ReloadUI()
@@ -581,7 +576,7 @@ end
 function OpenOptionsPanel()
   if not UI.optionsPanel then createOptionsPanel() end
   if not EnsureOptionsCategory() then
-    print("|cff00ff88CraftersBoard|r Warning: Could not register with Blizzard options. Using standalone mode.")
+    print("|cffffff00CraftersBoard|r Warning: Could not register with Blizzard options. Using standalone mode.")
   end
   
   -- Try multiple methods to open the AddOns tab with CraftersBoard settings
@@ -597,7 +592,7 @@ function OpenOptionsPanel()
     
     -- Refresh the options panel to show current values
     if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
-    print("|cff00ff88CraftersBoard|r Settings opened in Interface Options")
+    print("|cffffff00CraftersBoard|r Settings opened in Interface Options")
     return
   end
   
@@ -606,7 +601,7 @@ function OpenOptionsPanel()
     Settings.OpenToCategory(UI.optionsPanel.name)
     -- Refresh the options panel to show current values
     if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
-    print("|cff00ff88CraftersBoard|r Settings opened in Settings panel")
+    print("|cffffff00CraftersBoard|r Settings opened in Settings panel")
     return
   end
   
@@ -645,7 +640,7 @@ function OpenOptionsPanel()
     
     -- Refresh the options panel to show current values
     if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
-    print("|cff00ff88CraftersBoard|r Interface Options opened - look for CraftersBoard in AddOns")
+    print("|cffffff00CraftersBoard|r Interface Options opened - look for CraftersBoard in AddOns")
     return
   end
   
@@ -669,7 +664,7 @@ function OpenOptionsPanel()
   -- Refresh the options panel to show current values
   if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
   
-  print("|cff00ff88CraftersBoard|r Settings panel opened (standalone mode)")
+  print("|cffffff00CraftersBoard|r Settings panel opened (standalone mode)")
 end
 
 -- Export functions
