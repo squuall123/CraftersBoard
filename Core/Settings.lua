@@ -445,12 +445,16 @@ function OpenOptionsPanel()
   -- Method 1: InterfaceOptionsFrame_OpenToCategory (Classic/TBC)
   if InterfaceOptionsFrame_OpenToCategory then
     InterfaceOptionsFrame_OpenToCategory(UI.optionsPanel)
+    -- Refresh the options panel to show current values
+    if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
     return
   end
   
   -- Method 2: Settings.OpenToCategory (Retail 10.0+)
   if Settings and Settings.OpenToCategory then
     Settings.OpenToCategory(UI.optionsPanel.name)
+    -- Refresh the options panel to show current values
+    if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
     return
   end
   
@@ -459,6 +463,8 @@ function OpenOptionsPanel()
     if not InterfaceOptionsFrame:IsShown() then
       InterfaceOptionsFrame:Show()
     end
+    -- Refresh the options panel to show current values
+    if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
     return
   end
   
@@ -477,6 +483,10 @@ function OpenOptionsPanel()
   
   UI.optionsPanel:Show()
   UI.optionsPanel:Raise()
+  
+  -- Refresh the options panel to show current values
+  if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
+  
   print("|cff00ff88CraftersBoard|r Options panel opened (standalone mode)")
 end
 

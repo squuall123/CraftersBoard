@@ -213,9 +213,50 @@ function createUI()
   
   -- Modern title text
   f.title = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  f.title:SetPoint("LEFT", titleBar, "LEFT", 16, 0)
+  f.title:SetPoint("LEFT", titleBar, "LEFT", 48, 0)  -- Moved right to make space for settings button
   f.title:SetText("CraftersBoard — Crafters")
   f.title:SetTextColor(CB.getThemeColors().text[1], CB.getThemeColors().text[2], CB.getThemeColors().text[3], 1.0)  -- Theme text color
+  
+  -- Modern settings button (moved to left side)
+  local settingsBtn = CreateFrame("Button", nil, titleBar)
+  settingsBtn:SetSize(20, 20)
+  settingsBtn:SetPoint("LEFT", titleBar, "LEFT", 16, 0)  -- Positioned on the left side
+  settingsBtn:SetNormalTexture("Interface\\Icons\\INV_Misc_Gear_01")
+  settingsBtn:SetPushedTexture("Interface\\Icons\\INV_Misc_Gear_01")
+  settingsBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+  settingsBtn:SetScript("OnClick", function() 
+    -- Open CraftersBoard settings through game interface options
+    if CB.OpenOptionsPanel then
+      CB.OpenOptionsPanel()
+    else
+      print("|cff00ff88CraftersBoard|r Settings panel not available. Use /cb config")
+    end
+  end)
+  settingsBtn:SetScript("OnEnter", function(self)
+    -- Brighten the icon on hover
+    self:GetNormalTexture():SetVertexColor(1.2, 1.2, 1.0, 1.0)
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+    GameTooltip:SetText("Settings", 1, 1, 1)
+    GameTooltip:AddLine("Open CraftersBoard settings in interface options", 0.9, 0.9, 0.9, true)
+    GameTooltip:Show()
+  end)
+  settingsBtn:SetScript("OnLeave", function(self)
+    -- Reset icon color
+    self:GetNormalTexture():SetVertexColor(1.0, 1.0, 1.0, 1.0)
+    GameTooltip:Hide()
+  end)
+  settingsBtn:SetScript("OnMouseDown", function(self)
+    -- Darken the icon when pressed
+    self:GetNormalTexture():SetVertexColor(0.8, 0.8, 0.8, 1.0)
+  end)
+  settingsBtn:SetScript("OnMouseUp", function(self)
+    -- Reset to normal or hover state
+    if self:IsMouseOver() then
+      self:GetNormalTexture():SetVertexColor(1.2, 1.2, 1.0, 1.0)
+    else
+      self:GetNormalTexture():SetVertexColor(1.0, 1.0, 1.0, 1.0)
+    end
+  end)
   
   -- Modern close button
   local closeBtn = CreateFrame("Button", nil, titleBar)
