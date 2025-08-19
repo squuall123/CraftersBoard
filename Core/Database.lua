@@ -13,6 +13,8 @@ CB.DEFAULTS = {
     strict = true, -- drop LFG/boost/raid messages unless clearly crafting related
     noiseCustom = { raids = {}, groups = {}, roles = {}, boosts = {} }, -- user-managed extra noise
     showOfflineMembers = false, -- Show offline guild members in Guild Crafters tab
+    showFavoritesOnly = false, -- Show only favorite players in crafters/requests tabs
+    showRecentOnly = false, -- Show only entries created within the last 15 minutes
   },
   debug = false, -- Enable debug output
   entries = {},
@@ -58,6 +60,9 @@ function CB.InitDatabase()
   f.showRequesters = (f.showRequesters ~= nil) and f.showRequesters or CB.DEFAULTS.filters.showRequesters
   f.strict = (f.strict ~= nil) and f.strict or CB.DEFAULTS.filters.strict
   f.search = f.search or CB.DEFAULTS.filters.search
+  f.showOfflineMembers = (f.showOfflineMembers ~= nil) and f.showOfflineMembers or CB.DEFAULTS.filters.showOfflineMembers
+  f.showFavoritesOnly = (f.showFavoritesOnly ~= nil) and f.showFavoritesOnly or CB.DEFAULTS.filters.showFavoritesOnly
+  f.showRecentOnly = (f.showRecentOnly ~= nil) and f.showRecentOnly or CB.DEFAULTS.filters.showRecentOnly
 end
 
 -- Prune old entries

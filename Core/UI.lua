@@ -739,10 +739,68 @@ function createUI()
   lblOfflineMembers:SetTextColor(0.7, 0.7, 0.8, 1.0)
   lblOfflineMembers:Hide()
   
+  -- Recent only checkbox (positioned to the left of favorites checkbox)
+  local chkRecentOnly = CreateFrame("CheckButton", nil, searchArea, "UICheckButtonTemplate")
+  chkRecentOnly:SetSize(20, 20)
+  chkRecentOnly:SetPoint("RIGHT", searchArea, "RIGHT", -140, 0)  -- Leave space for favorites checkbox
+  chkRecentOnly:SetChecked(CRAFTERSBOARD_DB.filters.showRecentOnly)
+  chkRecentOnly:SetScript("OnClick", function(self)
+    CRAFTERSBOARD_DB.filters.showRecentOnly = self:GetChecked()
+    if UI.Force then UI.Force() end
+  end)
+  chkRecentOnly:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+    GameTooltip:SetText("Show Recent Only", 1, 1, 1)
+    GameTooltip:AddLine("Check this to display only entries created\nwithin the last 15 minutes", 0.9, 0.9, 0.9, true)
+    GameTooltip:Show()
+  end)
+  chkRecentOnly:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
+  chkRecentOnly:Hide()
+  
+  -- Recent only label
+  local lblRecentOnly = searchArea:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  lblRecentOnly:SetPoint("RIGHT", chkRecentOnly, "LEFT", -4, 0)
+  lblRecentOnly:SetText("Recent only")
+  lblRecentOnly:SetTextColor(0.7, 0.7, 0.8, 1.0)
+  lblRecentOnly:Hide()
+  
+  -- Favorites only checkbox (positioned on the right side of search area)
+  local chkFavoritesOnly = CreateFrame("CheckButton", nil, searchArea, "UICheckButtonTemplate")
+  chkFavoritesOnly:SetSize(20, 20)
+  chkFavoritesOnly:SetPoint("RIGHT", searchArea, "RIGHT", -12, 0)
+  chkFavoritesOnly:SetChecked(CRAFTERSBOARD_DB.filters.showFavoritesOnly)
+  chkFavoritesOnly:SetScript("OnClick", function(self)
+    CRAFTERSBOARD_DB.filters.showFavoritesOnly = self:GetChecked()
+    if UI.Force then UI.Force() end
+  end)
+  chkFavoritesOnly:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+    GameTooltip:SetText("Show Favorites Only", 1, 1, 1)
+    GameTooltip:AddLine("Check this to display only entries from\nplayers marked as favorites", 0.9, 0.9, 0.9, true)
+    GameTooltip:Show()
+  end)
+  chkFavoritesOnly:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
+  chkFavoritesOnly:Hide()
+  
+  -- Favorites only label
+  local lblFavoritesOnly = searchArea:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  lblFavoritesOnly:SetPoint("RIGHT", chkFavoritesOnly, "LEFT", -4, 0)
+  lblFavoritesOnly:SetText("Favorites only")
+  lblFavoritesOnly:SetTextColor(0.7, 0.7, 0.8, 1.0)
+  lblFavoritesOnly:Hide()
+  
   UI.btnGuildScan = btnGuildScan
   UI.lblScan = lblScan
   UI.chkOfflineMembers = chkOfflineMembers
   UI.lblOfflineMembers = lblOfflineMembers
+  UI.chkRecentOnly = chkRecentOnly
+  UI.lblRecentOnly = lblRecentOnly
+  UI.chkFavoritesOnly = chkFavoritesOnly
+  UI.lblFavoritesOnly = lblFavoritesOnly
 
   -- Force refresh function
   function UI.Force()
@@ -813,9 +871,13 @@ function createUI()
       if UI.activeKind == "GUILD" then 
         UI.btnGuildScan:Show(); UI.lblScan:Show()
         UI.chkOfflineMembers:Show(); UI.lblOfflineMembers:Show()
+        UI.chkRecentOnly:Hide(); UI.lblRecentOnly:Hide()
+        UI.chkFavoritesOnly:Hide(); UI.lblFavoritesOnly:Hide()
       else 
         UI.btnGuildScan:Hide(); UI.lblScan:Hide()
         UI.chkOfflineMembers:Hide(); UI.lblOfflineMembers:Hide()
+        UI.chkRecentOnly:Show(); UI.lblRecentOnly:Show()
+        UI.chkFavoritesOnly:Show(); UI.lblFavoritesOnly:Show()
       end
     end
     UI.Force()

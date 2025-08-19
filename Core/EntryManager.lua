@@ -100,6 +100,23 @@ function CB.GroupEntriesByProfession(kind, query)
         shouldInclude = false 
       end
       
+      -- Apply favorites filter if enabled
+      if shouldInclude and CRAFTERSBOARD_DB.filters.showFavoritesOnly then
+        if not CB.isPlayerFavorite or not CB.isPlayerFavorite(e.player) then
+          shouldInclude = false
+        end
+      end
+      
+      -- Apply recent filter if enabled (entries created within last 15 minutes)
+      if shouldInclude and CRAFTERSBOARD_DB.filters.showRecentOnly then
+        local currentTime = time()
+        local entryAge = currentTime - (e.time or 0)
+        local fifteenMinutes = 15 * 60  -- 15 minutes in seconds
+        if entryAge > fifteenMinutes then
+          shouldInclude = false
+        end
+      end
+      
       -- Strict render-time filter (affects both Workers & Looking For)
       if shouldInclude and CRAFTERSBOARD_DB.filters.strict then
         local m = e.message or ""
