@@ -112,6 +112,75 @@ local function mkEdit(name, parent, width, x, y, label, tooltip, get, set)
   return eb, btn, lbl
 end
 
+-- Helper function to create dropdown menus
+local function mkDropdown(name, parent, x, y, label, tooltip, options, getter, setter)
+  local lbl = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+  lbl:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+  lbl:SetText(label)
+
+  local dropdown = CreateFrame("Frame", name, parent, "UIDropDownMenuTemplate")
+  dropdown:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", -15, -4)
+  
+  -- Tooltip support
+  if tooltip and tooltip ~= "" then
+    dropdown:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+      GameTooltip:SetText(label, 1, 1, 1)
+      GameTooltip:AddLine(tooltip, 0.9, 0.9, 0.9, true)
+      GameTooltip:Show()
+    end)
+    dropdown:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+
+  -- Initialize dropdown
+  UIDropDownMenu_SetWidth(dropdown, 200)
+  UIDropDownMenu_Initialize(dropdown, function(self, level)
+    for _, option in ipairs(options) do
+      local info = UIDropDownMenu_CreateInfo()
+      info.text = option.text
+      info.value = option.value
+      info.func = function()
+        setter(option.value)
+        UIDropDownMenu_SetSelectedValue(dropdown, option.value)
+        print("|cff00ff88CraftersBoard|r changed " .. label .. " to: " .. option.text)
+        if UI and UI.Force then UI.Force() end
+      end
+      info.checked = (getter() == option.value)
+      UIDropDownMenu_AddButton(info, level)
+    end
+  end)
+  
+  -- Set initial value
+  UIDropDownMenu_SetSelectedValue(dropdown, getter())
+  UIDropDownMenu_SetText(dropdown, "")
+  for _, option in ipairs(options) do
+    if option.value == getter() then
+      UIDropDownMenu_SetText(dropdown, option.text)
+      break
+    end
+  end
+
+  -- Store reference for refreshing
+  if not UI.optionControls then UI.optionControls = {} end
+  UI.optionControls[name] = { 
+    dropdown = dropdown, 
+    getter = getter,
+    options = options,
+    refresh = function()
+      local currentValue = getter()
+      UIDropDownMenu_SetSelectedValue(dropdown, currentValue)
+      for _, option in ipairs(options) do
+        if option.value == currentValue then
+          UIDropDownMenu_SetText(dropdown, option.text)
+          break
+        end
+      end
+    end
+  }
+
+  return dropdown, lbl
+end
+
 -- Refresh function for options panel
 function UI.RefreshOptionsPanel()
   if not UI.optionControls then return end
@@ -121,6 +190,8 @@ function UI.RefreshOptionsPanel()
       ctrl.checkbox:SetChecked(ctrl.getter() and true or false)
     elseif ctrl.editbox then
       ctrl.editbox:SetText(ctrl.getter() or "")
+    elseif ctrl.dropdown and ctrl.refresh then
+      ctrl.refresh()
     end
   end
 end
@@ -169,8 +240,27 @@ function createOptionsPanel()
     function(v) CRAFTERSBOARD_DB.debug = v end,
     20, -140)
 
+  -- Theme selection dropdown
+  mkDropdown("CBOptThemeSelect", panel, 20, -180, "UI Theme", 
+    "Choose a color theme based on Classic WoW expansions",
+    {
+      { text = "Default Blue", value = "default" },
+      { text = "Vanilla Anniversary (Gold)", value = "vanilla" },
+      { text = "Hardcore (Red)", value = "hardcore" },
+      { text = "Burning Crusade (Fel Green)", value = "tbc" },
+      { text = "Wrath of the Lich King (Ice Blue)", value = "wotlk" }
+    },
+    function() return CRAFTERSBOARD_DB.theme or "default" end,
+    function(v) 
+      local currentTheme = CRAFTERSBOARD_DB.theme or "default"
+      if v == currentTheme then return end -- No change needed
+      
+      -- Show confirmation dialog for theme change
+      CB.ShowThemeChangeConfirmation(v)
+    end)
+
   -- Channel hints input
-  mkEdit("CBOptChannelHints", panel, 300, 20, -180, "Channel hints (comma-separated)", 
+  mkEdit("CBOptChannelHints", panel, 300, 20, -240, "Channel hints (comma-separated)", 
     "Channels to monitor for crafting messages (e.g. general,trade,commerce)",
     function() 
       local hints = CRAFTERSBOARD_DB.filters.channelHints or {}
@@ -188,7 +278,7 @@ function createOptionsPanel()
     end)
 
   -- Max entries input
-  mkEdit("CBOptMaxEntries", panel, 100, 20, -250, "Max entries", 
+  mkEdit("CBOptMaxEntries", panel, 100, 20, -310, "Max entries", 
     "Maximum number of entries to keep in memory",
     function() return tostring(CRAFTERSBOARD_DB.maxEntries or 300) end,
     function(v)
@@ -197,17 +287,17 @@ function createOptionsPanel()
     end)
 
   -- Request Templates section
-  Title(panel, "Request Message Templates", 20, -300)
-  SubText(panel, "Customize the predefined whisper messages for requesting materials and pricing.", 20, -325)
+  Title(panel, "Request Message Templates", 20, -360)
+  SubText(panel, "Customize the predefined whisper messages for requesting materials and pricing.", 20, -385)
 
   -- Ask for mats template
-  mkEdit("CBOptAskMatsTemplate", panel, 450, 20, -350, "Ask for materials template", 
+  mkEdit("CBOptAskMatsTemplate", panel, 450, 20, -410, "Ask for materials template", 
     "Template message for asking about required materials",
     function() return CRAFTERSBOARD_DB.requestTemplates.askForMats end,
     function(v) CRAFTERSBOARD_DB.requestTemplates.askForMats = v or CB.DEFAULTS.requestTemplates.askForMats end)
 
   -- Ask for price template  
-  mkEdit("CBOptAskPriceTemplate", panel, 450, 20, -420, "Ask for price template", 
+  mkEdit("CBOptAskPriceTemplate", panel, 450, 20, -480, "Ask for price template", 
     "Template message for asking about pricing",
     function() return CRAFTERSBOARD_DB.requestTemplates.askForPrice end,
     function(v) CRAFTERSBOARD_DB.requestTemplates.askForPrice = v or CB.DEFAULTS.requestTemplates.askForPrice end)
@@ -215,7 +305,15 @@ function createOptionsPanel()
   -- Add utility buttons
   local pruneBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
   pruneBtn:SetSize(120, 24)
-  pruneBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -480)
+  pruneBtn:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -540)
+  pruneBtn:SetText("Prune Old Entries")
+  pruneBtn:SetScript("OnClick", function()
+    if CB.pruneEntries then
+      local removed = CB.pruneEntries(3600) -- 1 hour
+      print("|cff00ff88CraftersBoard|r Removed " .. removed .. " old entries")
+      if UI.Force then UI.Force() end
+    end
+  end)
   pruneBtn:SetText("Prune Old Entries")
   pruneBtn:SetScript("OnClick", function()
     if CB.pruneEntries then
@@ -252,10 +350,55 @@ function createOptionsPanel()
   end)
 
   -- Instructions
-  SubText(panel, "Use /cb to open the main window, /cb config to open settings, or /cb help for command list.", 20, -530)
-  SubText(panel, "Addon automatically scans chat channels for crafting requests and service offers.", 20, -550)
+  SubText(panel, "Use /cb to open the main window, /cb config to open settings, or /cb help for command list.", 20, -590)
+  SubText(panel, "Addon automatically scans chat channels for crafting requests and service offers.", 20, -610)
 
   return panel
+end
+
+-- Theme change confirmation dialog using WoW's built-in StaticPopup system
+function CB.ShowThemeChangeConfirmation(newTheme)
+  -- Get theme name for display
+  local themeNames = {
+    default = "Default Blue",
+    vanilla = "Vanilla Anniversary (Gold)",
+    hardcore = "Hardcore (Red)",
+    tbc = "Burning Crusade (Fel Green)",
+    wotlk = "Wrath of the Lich King (Ice Blue)"
+  }
+  
+  local themeName = themeNames[newTheme] or newTheme
+  
+  -- Register the popup if it doesn't exist
+  if not StaticPopupDialogs["CRAFTERSBOARD_THEME_CHANGE"] then
+    StaticPopupDialogs["CRAFTERSBOARD_THEME_CHANGE"] = {
+      text = "Changing the theme requires a UI reload to take full effect.\n\nNew theme: %s\n\nReload now?",
+      button1 = "OK",
+      button2 = "Cancel",
+      OnAccept = function(self, data)
+        -- Apply the theme change
+        CRAFTERSBOARD_DB.theme = data.theme
+        print("|cff00ff88CraftersBoard|r Theme changed to: " .. data.themeName)
+        
+        -- Reload UI
+        ReloadUI()
+      end,
+      OnCancel = function()
+        -- Refresh the dropdown to show the original value
+        if UI.RefreshOptionsPanel then UI.RefreshOptionsPanel() end
+      end,
+      timeout = 0,
+      whileDead = true,
+      hideOnEscape = true,
+      preferredIndex = 3,  -- Avoid some UI taint issues
+    }
+  end
+  
+  -- Show the popup with theme data
+  local popup = StaticPopup_Show("CRAFTERSBOARD_THEME_CHANGE", themeName)
+  if popup then
+    popup.data = { theme = newTheme, themeName = themeName }
+  end
 end
 
 -- Ensure options category registration

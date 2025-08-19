@@ -227,7 +227,8 @@ function UI.AcquireHeader(parent)
     h = CreateFrame("Button", nil, UI.content)
     h:SetHeight(22)
     h.bg = h:CreateTexture(nil, "BACKGROUND")
-    h.bg:SetColorTexture(1,1,1,0.08)
+    local theme = CB.getThemeColors()
+    h.bg:SetColorTexture(theme.primary[1], theme.primary[2], theme.primary[3], 0.15)
     h.bg:SetAllPoints()
     
     h.toggle = CreateFrame("Button", nil, h)
@@ -425,16 +426,18 @@ function UI.AcquireRow(parent)
     b.bar:SetHeight(12)
     b.bar.bg = b.bar:CreateTexture(nil, "BACKGROUND")
     b.bar.bg:SetAllPoints(true)
-    b.bar.bg:SetColorTexture(0.05, 0.20, 0.45, 0.35)
+    local theme = CB.getThemeColors()
+    b.bar.bg:SetColorTexture(theme.secondary[1], theme.secondary[2], theme.secondary[3], 0.35)
     b.bar.text = b.bar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     b.bar.text:SetPoint("CENTER", b.bar, "CENTER", 0, 0)
     b.bar.text:SetTextColor(1, 1, 1)
     b.bar.text:SetShadowOffset(1, -1)
     b.SetBarColor = function(self, r, g, b) 
-      -- Default blue color if no color specified
-      r = r or 0.00
-      g = g or 0.65
-      b = b or 1.00
+      -- Default theme color if no color specified
+      local theme = CB.getThemeColors()
+      r = r or theme.accent[1]
+      g = g or theme.accent[2]
+      b = b or theme.accent[3]
       self.bar:SetStatusBarColor(r, g, b) 
     end
     b:SetBarColor()
@@ -794,6 +797,83 @@ end
 
 -- Initialize pools when UI is created
 UI.InitializePools()
+
+-- Theme color system for Classic expansions
+CB.THEMES = {
+  default = {
+    name = "Default Blue",
+    primary = {0.15, 0.25, 0.45},     -- Primary blue
+    secondary = {0.08, 0.12, 0.2},    -- Secondary dark blue
+    accent = {0.2, 0.4, 0.8},         -- Accent blue
+    highlight = {0.12, 0.18, 0.3},    -- Highlight blue
+    text = {0.9, 0.9, 1.0},           -- Light blue text
+    border = {0.3, 0.5, 0.9}          -- Border blue
+  },
+  vanilla = {
+    name = "Vanilla Anniversary (Gold)",
+    primary = {0.4, 0.3, 0.1},        -- Dark gold
+    secondary = {0.2, 0.15, 0.05},     -- Very dark gold
+    accent = {0.8, 0.6, 0.2},         -- Bright gold
+    highlight = {0.3, 0.25, 0.08},    -- Medium gold
+    text = {1.0, 0.9, 0.7},           -- Light gold text
+    border = {0.9, 0.7, 0.3}          -- Gold border
+  },
+  hardcore = {
+    name = "Hardcore (Red)",
+    primary = {0.3, 0.1, 0.1},        -- Dark red
+    secondary = {0.15, 0.05, 0.05},    -- Very dark red
+    accent = {0.8, 0.2, 0.2},         -- Bright red
+    highlight = {0.25, 0.08, 0.08},   -- Medium red
+    text = {1.0, 0.8, 0.8},           -- Light red text
+    border = {0.9, 0.3, 0.3}          -- Red border
+  },
+  tbc = {
+    name = "Burning Crusade (Fel Green)",
+    primary = {0.15, 0.3, 0.15},      -- Dark green
+    secondary = {0.08, 0.15, 0.08},    -- Very dark green
+    accent = {0.3, 0.8, 0.3},         -- Bright green
+    highlight = {0.12, 0.25, 0.12},   -- Medium green
+    text = {0.8, 1.0, 0.8},           -- Light green text
+    border = {0.4, 0.9, 0.4}          -- Green border
+  },
+  wotlk = {
+    name = "Wrath (Ice Blue)",
+    primary = {0.1, 0.2, 0.35},       -- Dark ice blue
+    secondary = {0.05, 0.1, 0.18},     -- Very dark ice blue
+    accent = {0.4, 0.7, 1.0},         -- Bright ice blue
+    highlight = {0.08, 0.15, 0.28},   -- Medium ice blue
+    text = {0.8, 0.9, 1.0},           -- Light ice blue text
+    border = {0.5, 0.8, 1.0}          -- Ice blue border
+  }
+}
+
+-- Get current theme colors
+function CB.getThemeColors()
+  local currentTheme = CRAFTERSBOARD_DB.theme or "default"
+  return CB.THEMES[currentTheme] or CB.THEMES.default
+end
+
+-- Apply theme colors to a backdrop-compatible frame
+function CB.applyThemeToFrame(frame, colorType, alpha)
+  local theme = CB.getThemeColors()
+  local color = theme[colorType] or theme.primary
+  alpha = alpha or 0.9
+  
+  if frame.SetBackdropColor then
+    frame:SetBackdropColor(color[1], color[2], color[3], alpha)
+  end
+end
+
+-- Apply theme border colors to a backdrop-compatible frame
+function CB.applyThemeBorderToFrame(frame, alpha)
+  local theme = CB.getThemeColors()
+  local color = theme.border
+  alpha = alpha or 0.6
+  
+  if frame.SetBackdropBorderColor then
+    frame:SetBackdropBorderColor(color[1], color[2], color[3], alpha)
+  end
+end
 
 -- Export the render function
 CB.render = UI.render

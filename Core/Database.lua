@@ -25,6 +25,7 @@ CB.DEFAULTS = {
   window = { w = 840, h = 420, point = "CENTER", relPoint = "CENTER", x = 0, y = 0 },
   muted = { players = {}, phrases = {} },
   lastTab = 1,
+  theme = "default", -- Theme selection: default, vanilla, hardcore, tbc, wotlk
   requestTemplates = {
     askForMats = "Hi! Could you please tell me what materials you need for your crafting services? Thanks!",
     askForPrice = "Hello! Could you please let me know your pricing for crafting services? Thank you!"
@@ -51,6 +52,7 @@ function CB.InitDatabase()
   CRAFTERSBOARD_DB.lastTab   = CRAFTERSBOARD_DB.lastTab   or CB.DEFAULTS.lastTab
   CRAFTERSBOARD_DB.filters   = CRAFTERSBOARD_DB.filters   or CB.deepcopy(CB.DEFAULTS.filters)
   CRAFTERSBOARD_DB.debug     = (CRAFTERSBOARD_DB.debug ~= nil) and CRAFTERSBOARD_DB.debug or CB.DEFAULTS.debug
+  CRAFTERSBOARD_DB.theme     = CRAFTERSBOARD_DB.theme     or CB.DEFAULTS.theme
   CRAFTERSBOARD_DB.requestTemplates = CRAFTERSBOARD_DB.requestTemplates or CB.deepcopy(CB.DEFAULTS.requestTemplates)
   
   local f = CRAFTERSBOARD_DB.filters

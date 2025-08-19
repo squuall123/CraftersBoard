@@ -176,7 +176,7 @@ function createUI()
     edgeSize = 16,
     insets = { left = 8, right = 8, top = 8, bottom = 8 }
   })
-  SetBackdropColorCompat(f, 0.05, 0.08, 0.12, 0.95)  -- Deep dark blue with high transparency
+  SetBackdropColorCompat(f, CB.getThemeColors().secondary[1], CB.getThemeColors().secondary[2], CB.getThemeColors().secondary[3], 0.95)  -- Theme secondary color with high transparency
   SetBackdropBorderColorCompat(f, 0.2, 0.4, 0.8, 0.8)  -- Subtle blue glow border
 
   if UISpecialFrames then tinsert(UISpecialFrames, f:GetName()) end
@@ -209,13 +209,13 @@ function createUI()
     tile = true,
     tileSize = 16
   })
-  SetBackdropColorCompat(titleBar, 0.1, 0.15, 0.25, 0.9)
+  SetBackdropColorCompat(titleBar, CB.getThemeColors().primary[1], CB.getThemeColors().primary[2], CB.getThemeColors().primary[3], 0.9)
   
   -- Modern title text
   f.title = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   f.title:SetPoint("LEFT", titleBar, "LEFT", 16, 0)
   f.title:SetText("CraftersBoard — Crafters")
-  f.title:SetTextColor(0.9, 0.9, 1.0, 1.0)  -- Slight blue tint
+  f.title:SetTextColor(CB.getThemeColors().text[1], CB.getThemeColors().text[2], CB.getThemeColors().text[3], 1.0)  -- Theme text color
   
   -- Modern close button
   local closeBtn = CreateFrame("Button", nil, titleBar)
@@ -231,7 +231,7 @@ function createUI()
   separator:SetHeight(1)
   separator:SetPoint("BOTTOMLEFT", titleBar, "BOTTOMLEFT", 8, 0)
   separator:SetPoint("BOTTOMRIGHT", titleBar, "BOTTOMRIGHT", -8, 0)
-  separator:SetColorTexture(0.3, 0.5, 0.9, 0.6)
+  separator:SetColorTexture(CB.getThemeColors().border[1], CB.getThemeColors().border[2], CB.getThemeColors().border[3], 0.6)
 
   -- Modern tab container
   local tabContainer = CreateFrame("Frame", nil, f)
@@ -283,24 +283,24 @@ function createUI()
       tileSize = 16,
       insets = { left = 6, right = 6, top = 6, bottom = 6 }
     })
-    SetBackdropColorCompat(tab, 0.08, 0.12, 0.2, 0.8)
+    SetBackdropColorCompat(tab, CB.getThemeColors().secondary[1], CB.getThemeColors().secondary[2], CB.getThemeColors().secondary[3], 0.8)
     
     -- Set up hover effects
     tab:SetScript("OnEnter", function(self)
       if self ~= UI.activeTab then
-        SetBackdropColorCompat(self, 0.12, 0.18, 0.3, 0.9)
+        SetBackdropColorCompat(self, CB.getThemeColors().highlight[1], CB.getThemeColors().highlight[2], CB.getThemeColors().highlight[3], 0.9)
       end
     end)
     
     tab:SetScript("OnLeave", function(self)
       if self ~= UI.activeTab then
-        SetBackdropColorCompat(self, 0.08, 0.12, 0.2, 0.8)
+        SetBackdropColorCompat(self, CB.getThemeColors().secondary[1], CB.getThemeColors().secondary[2], CB.getThemeColors().secondary[3], 0.8)
       end
     end)
     
     -- Ensure text is properly styled
     if tab.text then
-      tab.text:SetTextColor(0.8, 0.8, 0.9, 1.0)
+      tab.text:SetTextColor(CB.getThemeColors().text[1] * 0.8, CB.getThemeColors().text[2] * 0.8, CB.getThemeColors().text[3] * 0.8, 1.0)
       tab.text:SetJustifyH("CENTER")
       tab.text:SetJustifyV("MIDDLE")
       tab.text:SetWordWrap(false)
@@ -330,7 +330,7 @@ function createUI()
     tileSize = 16,
     insets = { left = 4, right = 4, top = 4, bottom = 4 }
   })
-  SetBackdropColorCompat(searchArea, 0.03, 0.05, 0.08, 0.7)
+  SetBackdropColorCompat(searchArea, CB.getThemeColors().secondary[1] * 0.5, CB.getThemeColors().secondary[2] * 0.5, CB.getThemeColors().secondary[3] * 0.5, 0.7)
   
   -- Create modern search box container
   local searchContainer = CreateFrame("Frame", nil, searchArea)
@@ -346,8 +346,8 @@ function createUI()
     edgeSize = 12,
     insets = { left = 6, right = 6, top = 6, bottom = 6 }
   })
-  SetBackdropColorCompat(searchContainer, 0.08, 0.12, 0.18, 0.95)
-  SetBackdropBorderColorCompat(searchContainer, 0.2, 0.4, 0.8, 0.6)
+  SetBackdropColorCompat(searchContainer, CB.getThemeColors().secondary[1], CB.getThemeColors().secondary[2], CB.getThemeColors().secondary[3], 0.95)
+  SetBackdropBorderColorCompat(searchContainer, CB.getThemeColors().border[1], CB.getThemeColors().border[2], CB.getThemeColors().border[3], 0.6)
   
   -- Search scope icon (magnifying glass)
   local searchIcon = searchContainer:CreateTexture(nil, "OVERLAY")
@@ -418,12 +418,12 @@ function createUI()
       edgeSize = 12,
       insets = { left = 6, right = 6, top = 6, bottom = 6 }
     })
-    SetBackdropColorCompat(btn, 0.1, 0.2, 0.4, 0.9)
-    SetBackdropBorderColorCompat(btn, 0.3, 0.5, 0.9, 0.8)
+    SetBackdropColorCompat(btn, CB.getThemeColors().primary[1], CB.getThemeColors().primary[2], CB.getThemeColors().primary[3], 0.9)
+    SetBackdropBorderColorCompat(btn, CB.getThemeColors().border[1], CB.getThemeColors().border[2], CB.getThemeColors().border[3], 0.8)
     
     local btnText = btn:GetFontString()
     if btnText then
-      btnText:SetTextColor(0.9, 0.9, 1.0, 1.0)
+      btnText:SetTextColor(CB.getThemeColors().text[1], CB.getThemeColors().text[2], CB.getThemeColors().text[3], 1.0)
     end
   end
   
@@ -477,7 +477,7 @@ function createUI()
     edgeSize = 12,
     insets = { left = 4, right = 4, top = 4, bottom = 4 }
   })
-  SetBackdropColorCompat(scrollContainer, 0.02, 0.03, 0.06, 0.9)
+  SetBackdropColorCompat(scrollContainer, CB.getThemeColors().secondary[1] * 0.4, CB.getThemeColors().secondary[2] * 0.4, CB.getThemeColors().secondary[3] * 0.4, 0.9)
   SetBackdropBorderColorCompat(scrollContainer, 0.15, 0.25, 0.4, 0.7)
   
   -- Create scroll frame with fallback for Classic compatibility
@@ -847,16 +847,16 @@ function createUI()
     for i, tab in ipairs(tabs) do
       if i == id then
         -- Active tab styling
-        SetBackdropColorCompat(tab, 0.15, 0.25, 0.45, 1.0)
+        SetBackdropColorCompat(tab, CB.getThemeColors().primary[1], CB.getThemeColors().primary[2], CB.getThemeColors().primary[3], 1.0)
         if tab.text then
-          tab.text:SetTextColor(1.0, 1.0, 1.0, 1.0)
+          tab.text:SetTextColor(CB.getThemeColors().text[1], CB.getThemeColors().text[2], CB.getThemeColors().text[3], 1.0)
         end
         UI.activeTab = tab
       else
         -- Inactive tab styling
-        SetBackdropColorCompat(tab, 0.08, 0.12, 0.2, 0.8)
+        SetBackdropColorCompat(tab, CB.getThemeColors().secondary[1], CB.getThemeColors().secondary[2], CB.getThemeColors().secondary[3], 0.8)
         if tab.text then
-          tab.text:SetTextColor(0.8, 0.8, 0.9, 1.0)
+          tab.text:SetTextColor(CB.getThemeColors().text[1] * 0.8, CB.getThemeColors().text[2] * 0.8, CB.getThemeColors().text[3] * 0.8, 1.0)
         end
       end
     end
