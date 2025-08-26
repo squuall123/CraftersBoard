@@ -14,6 +14,47 @@ end
 CB.ProfessionLinks = CB.ProfessionLinks or {}
 local PL = CB.ProfessionLinks
 
+-- Add compatibility functions for UI styling (shared with main UI)
+if not CB.UI then CB.UI = {} end
+
+-- Classic compatibility functions for backdrop (if not already defined)
+if not CB.UI.SetBackdropCompat then
+    function CB.UI.SetBackdropCompat(frame, backdrop)
+        if frame.SetBackdrop then
+            frame:SetBackdrop(backdrop)
+        else
+            -- Classic fallback: create a manual backdrop texture
+            if not frame._backdrop then
+                frame._backdrop = frame:CreateTexture(nil, "BACKGROUND")
+                frame._backdrop:SetAllPoints()
+            end
+            if backdrop and backdrop.bgFile then
+                frame._backdrop:SetTexture(backdrop.bgFile)
+                frame._backdrop:SetTexCoord(0, 1, 0, 1)
+            end
+        end
+    end
+end
+
+if not CB.UI.SetBackdropColorCompat then
+    function CB.UI.SetBackdropColorCompat(frame, r, g, b, a)
+        if frame.SetBackdropColor then
+            frame:SetBackdropColor(r, g, b, a)
+        elseif frame._backdrop then
+            frame._backdrop:SetVertexColor(r, g, b, a or 1)
+        end
+    end
+end
+
+if not CB.UI.SetBackdropBorderColorCompat then
+    function CB.UI.SetBackdropBorderColorCompat(frame, r, g, b, a)
+        if frame.SetBackdropBorderColor then
+            frame:SetBackdropBorderColor(r, g, b, a)
+        end
+        -- Note: Border color not easily implemented in manual fallback
+    end
+end
+
 -- Constants
 local ADDON_MESSAGE_PREFIX = "CBPROF"
 local PROTOCOL_VERSION = 1
@@ -2444,15 +2485,15 @@ local professionViewerFrame = nil
 local viewerScrollFrame = nil
 local viewerContent = nil
 
--- Create the profession viewer window with modern Blizzard-style UI
+-- Create the profession viewer window inspired by original WoW profession UI
 function PL.CreateProfessionViewer()
     if professionViewerFrame then return professionViewerFrame end
     
-    Debug("Creating modern profession viewer with authentic Blizzard styling...")
+    Debug("Creating profession viewer inspired by original WoW profession UI...")
     
-    -- Create main frame using authentic Blizzard window styling
+    -- Create main frame with original profession window proportions
     local frame = CreateFrame("Frame", "CraftersBoardProfessionViewer", UIParent)
-    frame:SetSize(850, 560) -- Larger, more modern size
+    frame:SetSize(700, 500)  -- More compact like original tradeskill window
     frame:SetPoint("CENTER")
     frame:Hide()
     frame:SetMovable(true)
@@ -2468,428 +2509,143 @@ function PL.CreateProfessionViewer()
         table.insert(UISpecialFrames, frame:GetName())
     end
     
-    -- Create transparent frame background
-    local bgTexture = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
-    bgTexture:SetAllPoints()
-    bgTexture:SetColorTexture(0, 0, 0, 0.85) -- Semi-transparent black background
+    -- Apply CraftersBoard backdrop styling
+    local theme = CB.getThemeColors()
+    CB.UI.SetBackdropCompat(frame, {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    CB.UI.SetBackdropColorCompat(frame, theme.primary[1], theme.primary[2], theme.primary[3], 0.95)
+    CB.UI.SetBackdropBorderColorCompat(frame, theme.border[1], theme.border[2], theme.border[3], 1.0)
     
-    -- Create simple border instead of textured one
-    local borderTexture = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
-    borderTexture:SetAllPoints()
-    borderTexture:SetColorTexture(0.2, 0.2, 0.2, 0.9) -- Dark gray border
+    -- Simple title bar like original profession window
+    local titleBar = CreateFrame("Frame", nil, frame)
+    titleBar:SetHeight(28)
+    titleBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -12)
+    titleBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -12)
     
-    -- Remove decorative borders for cleaner look
-    -- Top border decoration (commented out)
-    -- local topBorder = frame:CreateTexture(nil, "ARTWORK", nil, -6)
-    -- topBorder:SetSize(850, 64)
-    -- topBorder:SetPoint("TOP", frame, "TOP", 0, 32)
-    -- topBorder:SetTexture("Interface\\FrameGeneral\\UI-Frame-TopFrame")
+    -- Title text
+    frame.TitleText = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    -- Create profession icon for title bar
+    if not frame.ProfessionIcon then
+        frame.ProfessionIcon = titleBar:CreateTexture(nil, "ARTWORK")
+        frame.ProfessionIcon:SetSize(20, 20)
+        frame.ProfessionIcon:SetPoint("LEFT", titleBar, "LEFT", 8, 0)
+    end
     
-    -- Remove all decorative borders for clean transparent look
-    -- (All border decorations commented out)
-    
-    -- Create elegant title with proper styling
-    frame.TitleText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    frame.TitleText:SetPoint("TOP", frame, "TOP", 0, -20)
+    -- Update title text position to make room for icon
+    frame.TitleText:SetPoint("LEFT", frame.ProfessionIcon, "RIGHT", 8, 0)
     frame.TitleText:SetText("Profession Viewer")
-    frame.TitleText:SetTextColor(1, 0.82, 0) -- Blizzard gold
-    frame.TitleText:SetShadowOffset(1, -1)
-    frame.TitleText:SetShadowColor(0, 0, 0, 1)
+    frame.TitleText:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
     
-    -- Create modern close button with hover effects
-    local closeBtn = CreateFrame("Button", nil, frame)
-    closeBtn:SetSize(24, 24)
-    closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -8)
-    closeBtn:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
-    closeBtn:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
-    closeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight", "ADD")
-    closeBtn:SetScript("OnClick", function(self)
+    -- Close button (standard WoW style)
+    frame.CloseButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    frame.CloseButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)
+    frame.CloseButton:SetScript("OnClick", function()
         frame:Hide()
     end)
-    closeBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Close")
-        GameTooltip:Show()
-    end)
-    closeBtn:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
     
-    -- Create "Generate Link" button
-    local linkBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    linkBtn:SetSize(100, 22)
-    linkBtn:SetPoint("TOPRIGHT", closeBtn, "TOPLEFT", -10, -1)
-    linkBtn:SetText("Generate Link")
-    linkBtn:SetScript("OnClick", function(self)
-        PL.GenerateAndShowProfessionLink(frame)
-    end)
-    linkBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Generate a shareable profession link")
-        GameTooltip:AddLine("Click the generated link to view profession", 1, 1, 1)
-        GameTooltip:AddLine("Shift+click to insert in chat (when chat is active)", 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    linkBtn:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
-    frame.linkBtn = linkBtn
+    -- Category Filter Dropdown (proper dropdown UI component)
+    local dropdownFrame = CreateFrame("Frame", nil, titleBar, "UIDropDownMenuTemplate")
+    dropdownFrame:SetPoint("RIGHT", frame.CloseButton, "LEFT", -10, 0)
     
-    -- Create tabbed interface for better organization
-    local tabContainer = CreateFrame("Frame", nil, frame)
-    tabContainer:SetSize(820, 40)
-    tabContainer:SetPoint("TOP", frame, "TOP", 0, -60)
+    -- Apply theme styling to dropdown
+    local theme = CB.getThemeColors()
     
-    -- Transparent tab background
-    local tabBg = tabContainer:CreateTexture(nil, "BACKGROUND")
-    tabBg:SetAllPoints()
-    tabBg:SetColorTexture(0.1, 0.1, 0.1, 0.6) -- Semi-transparent dark background
-    
-    -- Create tabs
-    local tabs = {}
-    local tabNames = {"Overview", "Recipes", "Statistics"}
-    for i, tabName in ipairs(tabNames) do
-        local tab = CreateFrame("Button", nil, tabContainer)
-        tab:SetSize(120, 32)
-        tab:SetPoint("LEFT", tabContainer, "LEFT", (i-1) * 125 + 20, 0)
-        
-        -- Tab textures
-        tab:SetNormalTexture("Interface\\ChatFrame\\ChatFrameTab")
-        tab:SetHighlightTexture("Interface\\ChatFrame\\ChatFrameTab")
-        tab:SetPushedTexture("Interface\\ChatFrame\\ChatFrameTab")
-        
-        -- Tab text
-        local tabText = tab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        tabText:SetPoint("CENTER", tab, "CENTER", 0, 0)
-        tabText:SetText(tabName)
-        tab.text = tabText
-        
-        tab.tabIndex = i
-        tab:SetScript("OnClick", function(self)
-            PL.SwitchViewerTab(self.tabIndex)
-        end)
-        
-        tabs[i] = tab
-    end
-    frame.tabs = tabs
-    frame.activeTab = 1
-    
-    -- Create main content area with modern styling
-    local contentFrame = CreateFrame("Frame", nil, frame)
-    contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 25, -105)
-    contentFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 25)
-    
-    -- Transparent content background
-    local contentBg = contentFrame:CreateTexture(nil, "BACKGROUND")
-    contentBg:SetAllPoints()
-    contentBg:SetColorTexture(0.05, 0.05, 0.05, 0.7) -- Very subtle transparent background
-    
-    -- Simple content border
-    local contentBorder = contentFrame:CreateTexture(nil, "BORDER")
-    contentBorder:SetAllPoints()
-    contentBorder:SetColorTexture(0.3, 0.3, 0.3, 0.8) -- Simple gray border
-    
-    frame.contentFrame = contentFrame
-    
-    -- Create overview panel (default active)
-    local overviewPanel = PL.CreateOverviewPanel(contentFrame)
-    frame.overviewPanel = overviewPanel
-    
-    -- Create recipes panel
-    local recipesPanel = PL.CreateRecipesPanel(contentFrame)
-    frame.recipesPanel = recipesPanel
-    
-    -- Create statistics panel
-    local statsPanel = PL.CreateStatisticsPanel(contentFrame)
-    frame.statsPanel = statsPanel
-    
-    -- Initially show overview
-    overviewPanel:Show()
-    recipesPanel:Hide()
-    statsPanel:Hide()
-    
-    -- Loading indicator with animation
-    local loadingText = contentFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    loadingText:SetPoint("CENTER", contentFrame, "CENTER", 0, 0)
-    loadingText:SetText("Loading profession data...")
-    loadingText:SetTextColor(1, 0.82, 0)
-    loadingText:Hide()
-    frame.loadingText = loadingText
-    
-    -- Create loading animation
-    local loadingDots = ""
-    local loadingFrame = CreateFrame("Frame")
-    loadingFrame:SetScript("OnUpdate", function(self, elapsed)
-        self.elapsed = (self.elapsed or 0) + elapsed
-        if self.elapsed >= 0.5 then
-            self.elapsed = 0
-            loadingDots = loadingDots .. "."
-            if string.len(loadingDots) > 3 then
-                loadingDots = ""
-            end
-            if frame.loadingText and frame.loadingText:IsVisible() then
-                frame.loadingText:SetText("Loading profession data" .. loadingDots)
-            end
-        end
-    end)
-    frame.loadingFrame = loadingFrame
-    
-    -- Store references
-    professionViewerFrame = frame
-    viewerScrollFrame = recipesPanel.scrollFrame -- For backward compatibility
-    viewerContent = recipesPanel.scrollContent -- For backward compatibility
-    
-    Debug("Created modern profession viewer with:")
-    Debug("  Size: " .. frame:GetWidth() .. "x" .. frame:GetHeight())
-    Debug("  Tabbed interface with 3 panels")
-    Debug("  Transparent backgrounds for clean look")
-    Debug("  Animated loading indicators")
-    Debug("  Modern close button with tooltips")
-    
-    return frame
-end
-
--- Create overview panel with profession summary
-function PL.CreateOverviewPanel(parent)
-    local panel = CreateFrame("Frame", nil, parent)
-    panel:SetAllPoints()
-    
-    -- Transparent panel background
-    local bg = panel:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 0) -- Fully transparent background
-    
-    -- Large profession icon
-    local profIcon = panel:CreateTexture(nil, "ARTWORK")
-    profIcon:SetSize(128, 128)
-    profIcon:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -20)
-    profIcon:SetTexture("Interface\\Icons\\Trade_Alchemy") -- Default
-    panel.profIcon = profIcon
-    
-    -- Icon border decoration
-    local iconBorder = panel:CreateTexture(nil, "BORDER")
-    iconBorder:SetSize(140, 140)
-    iconBorder:SetPoint("CENTER", profIcon, "CENTER", 0, 0)
-    iconBorder:SetTexture("Interface\\AchievementFrame\\UI-Achievement-IconFrame")
-    iconBorder:SetTexCoord(0, 0.5625, 0, 0.5625)
-    iconBorder:SetVertexColor(1, 0.82, 0, 1)
-    
-    -- Profession name
-    local profName = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    profName:SetPoint("TOPLEFT", profIcon, "TOPRIGHT", 20, -10)
-    profName:SetText("Unknown Profession")
-    profName:SetTextColor(1, 0.82, 0) -- Blizzard gold
-    panel.profName = profName
-    
-    -- Player name
-    local playerName = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    playerName:SetPoint("TOPLEFT", profName, "BOTTOMLEFT", 0, -10)
-    playerName:SetText("Player Name")
-    playerName:SetTextColor(0.8, 0.8, 1) -- Light blue
-    panel.playerName = playerName
-    
-    -- Skill level with progress bar
-    local skillText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    skillText:SetPoint("TOPLEFT", playerName, "BOTTOMLEFT", 0, -15)
-    skillText:SetText("Skill Level:")
-    skillText:SetTextColor(1, 1, 1)
-    
-    local skillLevel = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    skillLevel:SetPoint("LEFT", skillText, "RIGHT", 10, 0)
-    skillLevel:SetText("0 / 300")
-    panel.skillLevel = skillLevel
-    
-    -- Progress bar
-    local progressBar = CreateFrame("StatusBar", nil, panel)
-    progressBar:SetSize(300, 20)
-    progressBar:SetPoint("TOPLEFT", skillText, "BOTTOMLEFT", 0, -10)
-    progressBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    progressBar:SetStatusBarColor(0.2, 0.8, 0.2, 1) -- Green
-    progressBar:SetMinMaxValues(0, 300)
-    progressBar:SetValue(0)
-    
-    -- Progress bar background
-    local progressBg = progressBar:CreateTexture(nil, "BACKGROUND")
-    progressBg:SetAllPoints()
-    progressBg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    progressBg:SetVertexColor(0.3, 0.3, 0.3, 0.8)
-    
-    -- Progress bar border
-    local progressBorder = CreateFrame("Frame", nil, panel)
-    progressBorder:SetPoint("TOPLEFT", progressBar, "TOPLEFT", -2, 2)
-    progressBorder:SetPoint("BOTTOMRIGHT", progressBar, "BOTTOMRIGHT", 2, -2)
-    local borderTex = progressBorder:CreateTexture(nil, "OVERLAY")
-    borderTex:SetAllPoints()
-    borderTex:SetTexture("Interface\\Tooltips\\UI-Tooltip-Border")
-    borderTex:SetVertexColor(0.6, 0.6, 0.6, 1)
-    
-    panel.progressBar = progressBar
-    
-    -- Statistics section
-    local statsHeader = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    statsHeader:SetPoint("TOPLEFT", progressBar, "BOTTOMLEFT", 0, -30)
-    statsHeader:SetText("Statistics")
-    statsHeader:SetTextColor(1, 0.82, 0)
-    
-    -- Recipe count
-    local recipeCount = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    recipeCount:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -10)
-    recipeCount:SetText("Total Recipes: 0")
-    panel.recipeCount = recipeCount
-    
-    -- Categories count
-    local categoryCount = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    categoryCount:SetPoint("TOPLEFT", recipeCount, "BOTTOMLEFT", 0, -5)
-    categoryCount:SetText("Categories: 0")
-    panel.categoryCount = categoryCount
-    
-    -- Last updated
-    local lastUpdated = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    lastUpdated:SetPoint("TOPLEFT", categoryCount, "BOTTOMLEFT", 0, -5)
-    lastUpdated:SetText("Last Updated: Never")
-    lastUpdated:SetTextColor(0.7, 0.7, 0.7)
-    panel.lastUpdated = lastUpdated
-    
-    -- Recipe difficulty breakdown
-    local difficultyHeader = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    difficultyHeader:SetPoint("TOPLEFT", lastUpdated, "BOTTOMLEFT", 0, -30)
-    difficultyHeader:SetText("Recipe Difficulty")
-    difficultyHeader:SetTextColor(1, 0.82, 0)
-    
-    -- Difficulty bars
-    local difficulties = {
-        {name = "Optimal (Orange)", color = {1, 0.5, 0}},
-        {name = "Medium (Yellow)", color = {1, 1, 0}},
-        {name = "Easy (Green)", color = {0, 1, 0}},
-        {name = "Trivial (Gray)", color = {0.5, 0.5, 0.5}}
+    -- Store reference to filter elements
+    frame.categoryFilter = {
+        dropdown = dropdownFrame,
+        currentCategory = "all"
     }
     
-    panel.difficultyBars = {}
-    for i, diff in ipairs(difficulties) do
-        local yOffset = -15 - (i-1) * 25
+    -- Initialize dropdown
+    UIDropDownMenu_SetWidth(dropdownFrame, 120)
+    UIDropDownMenu_SetText(dropdownFrame, "All Categories")
+    
+    -- Dropdown initialization function
+    local function InitializeDropdown(self, level)
+        if not frame.currentProfessionData then return end
         
-        -- Difficulty label
-        local label = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        label:SetPoint("TOPLEFT", difficultyHeader, "BOTTOMLEFT", 0, yOffset)
-        label:SetText(diff.name .. ": 0")
-        label:SetTextColor(diff.color[1], diff.color[2], diff.color[3])
+        local info = UIDropDownMenu_CreateInfo()
         
-        -- Difficulty bar
-        local bar = CreateFrame("StatusBar", nil, panel)
-        bar:SetSize(200, 12)
-        bar:SetPoint("LEFT", label, "RIGHT", 20, 0)
-        bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        bar:SetStatusBarColor(diff.color[1], diff.color[2], diff.color[3], 0.8)
-        bar:SetMinMaxValues(0, 100)
-        bar:SetValue(0)
+        -- Add "All Categories" option
+        info.text = "All Categories"
+        info.value = "all"
+        info.func = function()
+            PL.SetCategoryFilter(frame, "all", "All Categories")
+        end
+        info.checked = (frame.categoryFilter.currentCategory == "all")
+        UIDropDownMenu_AddButton(info)
         
-        -- Bar background
-        local barBg = bar:CreateTexture(nil, "BACKGROUND")
-        barBg:SetAllPoints()
-        barBg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        barBg:SetVertexColor(0.2, 0.2, 0.2, 0.8)
-        
-        panel.difficultyBars[diff.name:lower():match("(%w+)")] = {label = label, bar = bar}
+        -- Add category options
+        if frame.currentProfessionData.categories then
+            for categoryName, recipeIndices in pairs(frame.currentProfessionData.categories) do
+                if recipeIndices and #recipeIndices > 0 then
+                    info = UIDropDownMenu_CreateInfo()
+                    info.text = categoryName .. " (" .. #recipeIndices .. ")"
+                    info.value = categoryName
+                    info.func = function()
+                        PL.SetCategoryFilter(frame, categoryName, categoryName)
+                    end
+                    info.checked = (frame.categoryFilter.currentCategory == categoryName)
+                    UIDropDownMenu_AddButton(info)
+                end
+            end
+        end
     end
     
-    return panel
-end
-
--- Create recipes panel with scrollable list
-function PL.CreateRecipesPanel(parent)
-    local panel = CreateFrame("Frame", nil, parent)
-    panel:SetAllPoints()
+    UIDropDownMenu_Initialize(dropdownFrame, InitializeDropdown)
     
-    -- Transparent panel background
-    local bg = panel:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 0) -- Fully transparent background
+    -- Single content area like original profession window (no tabs)
+    -- Split into left panel (recipes) and right panel (recipe details)
+    local leftPanel = CreateFrame("ScrollFrame", nil, frame)
+    leftPanel:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 12, -8)
+    leftPanel:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 12)
+    leftPanel:SetWidth(350)  -- Left panel for recipe list
     
-    -- Search/filter section
-    local filterFrame = CreateFrame("Frame", nil, panel)
-    filterFrame:SetSize(780, 40)
-    filterFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 10, -10)
+    -- Right panel for recipe details
+    local rightPanel = CreateFrame("Frame", nil, frame)
+    rightPanel:SetPoint("TOPLEFT", leftPanel, "TOPRIGHT", 8, 0)
+    rightPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 12)
     
-    -- Search box
-    local searchBox = CreateFrame("EditBox", nil, filterFrame)
-    searchBox:SetSize(200, 32)
-    searchBox:SetPoint("LEFT", filterFrame, "LEFT", 0, 0)
-    searchBox:SetFontObject("GameFontNormal")
-    searchBox:SetAutoFocus(false)
-    searchBox:SetMaxLetters(50)
+    -- Add a separator line between panels
+    local separator = rightPanel:CreateTexture(nil, "ARTWORK")
+    separator:SetWidth(1)
+    separator:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 0, 0)
+    separator:SetPoint("BOTTOMLEFT", rightPanel, "BOTTOMLEFT", 0, 0)
+    separator:SetTexture("Interface\\Tooltips\\UI-Tooltip-Border")
+    separator:SetVertexColor(theme.border[1], theme.border[2], theme.border[3], 0.5)
     
-    -- Search box background
-    local searchBg = searchBox:CreateTexture(nil, "BACKGROUND")
-    searchBg:SetAllPoints()
-    searchBg:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
-    searchBg:SetVertexColor(0, 0, 0, 0.8)
+    -- Scroll child for left panel content
+    local scrollChild = CreateFrame("Frame", nil, leftPanel)
+    scrollChild:SetWidth(leftPanel:GetWidth() - 20)
+    leftPanel:SetScrollChild(scrollChild)
     
-    -- Search box border
-    local searchBorder = searchBox:CreateTexture(nil, "BORDER")
-    searchBorder:SetAllPoints()
-    searchBorder:SetTexture("Interface\\Tooltips\\UI-Tooltip-Border")
-    searchBorder:SetVertexColor(0.6, 0.6, 0.6, 1)
-    
-    searchBox:SetScript("OnTextChanged", function(self)
-        PL.FilterRecipes(self:GetText())
-    end)
-    searchBox:SetScript("OnEnterPressed", function(self)
-        self:ClearFocus()
-    end)
-    searchBox:SetScript("OnEscapePressed", function(self)
-        self:SetText("")
-        self:ClearFocus()
-        PL.FilterRecipes("")
-    end)
-    
-    panel.searchBox = searchBox
-    
-    -- Search label
-    local searchLabel = filterFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    searchLabel:SetPoint("BOTTOM", searchBox, "TOP", 0, 5)
-    searchLabel:SetText("Search Recipes:")
-    searchLabel:SetTextColor(1, 1, 1)
-    
-    -- Category filter dropdown placeholder
-    local categoryLabel = filterFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    categoryLabel:SetPoint("LEFT", searchBox, "RIGHT", 30, 0)
-    categoryLabel:SetText("Filter by Category: All")
-    categoryLabel:SetTextColor(1, 1, 1)
-    panel.categoryLabel = categoryLabel
-    
-    -- Create scroll frame for recipes
-    local scrollFrame = CreateFrame("ScrollFrame", "ProfessionViewerRecipesScrollFrame", panel)
-    scrollFrame:SetPoint("TOPLEFT", filterFrame, "BOTTOMLEFT", 0, -10)
-    scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -25, 10)
-    
-    -- Create scroll bar
-    local scrollBar = CreateFrame("Slider", "ProfessionViewerRecipesScrollBar", panel)
-    scrollBar:SetPoint("TOPLEFT", scrollFrame, "TOPRIGHT", 5, -16)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollFrame, "BOTTOMRIGHT", 5, 16)
+    -- Scroll bar for left panel
+    local scrollBar = CreateFrame("Slider", nil, frame)
+    scrollBar:SetPoint("TOPRIGHT", leftPanel, "TOPRIGHT", 20, -16)
+    scrollBar:SetPoint("BOTTOMRIGHT", leftPanel, "BOTTOMRIGHT", 20, 16)
     scrollBar:SetWidth(16)
     scrollBar:SetOrientation("VERTICAL")
     scrollBar:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+    scrollBar:SetMinMaxValues(0, 0)
+    scrollBar:SetValue(0)
     
     -- Scroll bar background
     local scrollBg = scrollBar:CreateTexture(nil, "BACKGROUND")
     scrollBg:SetAllPoints()
     scrollBg:SetTexture("Interface\\Buttons\\UI-SliderBar-Background")
+    scrollBg:SetVertexColor(theme.secondary[1], theme.secondary[2], theme.secondary[3], 0.8)
     
-    -- Configure scroll bar
     scrollBar:SetScript("OnValueChanged", function(self, value)
-        scrollFrame:SetVerticalScroll(value)
+        leftPanel:SetVerticalScroll(value)
     end)
     
-    scrollFrame.ScrollBar = scrollBar
-    
-    -- Create scroll content
-    local scrollContent = CreateFrame("Frame", nil, scrollFrame)
-    scrollContent:SetSize(750, 1)
-    scrollFrame:SetScrollChild(scrollContent)
-    
-    -- Enable mouse wheel scrolling
-    scrollFrame:EnableMouseWheel(true)
-    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+    -- Mouse wheel scrolling for left panel
+    leftPanel:EnableMouseWheel(true)
+    leftPanel:SetScript("OnMouseWheel", function(self, delta)
         local current = self:GetVerticalScroll()
         local maxScroll = self:GetVerticalScrollRange()
         local newScroll = current - (delta * 30)
@@ -2900,130 +2656,617 @@ function PL.CreateRecipesPanel(parent)
             newScroll = maxScroll
         end
         
-        self:SetVerticalScroll(newScroll)
         scrollBar:SetValue(newScroll)
     end)
     
-    -- Update scroll bar when content changes
-    scrollFrame.UpdateScrollChildRect = function(self)
-        local range = self:GetVerticalScrollRange()
-        scrollBar:SetMinMaxValues(0, range)
-        scrollBar:SetValue(self:GetVerticalScroll())
+    -- Update scroll range function
+    local function UpdateScrollRange()
+        local contentHeight = scrollChild:GetHeight()
+        local frameHeight = leftPanel:GetHeight()
+        local maxScroll = math.max(0, contentHeight - frameHeight)
+        scrollBar:SetMinMaxValues(0, maxScroll)
     end
     
-    panel.scrollFrame = scrollFrame
-    panel.scrollContent = scrollContent
+    scrollChild:SetScript("OnSizeChanged", UpdateScrollRange)
+    leftPanel:SetScript("OnSizeChanged", UpdateScrollRange)
     
-    return panel
+    
+    -- Store references for content updates
+    frame.contentFrame = leftPanel
+    frame.scrollChild = scrollChild
+    frame.rightPanel = rightPanel
+    frame.UpdateScrollRange = UpdateScrollRange
+    
+    -- Create the unified profession display function
+    frame.DisplayProfessionData = function(self, professionData)
+        -- Store profession data for filtering
+        self.currentProfessionData = professionData
+        
+        -- Reset filter to "all" when new data is loaded
+        if self.categoryFilter then
+            self.categoryFilter.currentCategory = "all"
+            UIDropDownMenu_SetText(self.categoryFilter.dropdown, "All Categories")
+        end
+        
+        -- Initialize right panel with placeholder
+        if self.rightPanel then
+            PL.DisplayRecipeDetails(self.rightPanel, nil, theme)
+        end
+        
+        -- Get current filter (default to "all")
+        local categoryFilter = self.categoryFilter and self.categoryFilter.currentCategory or "all"
+        
+        PL.CreateUnifiedProfessionDisplay(self.scrollChild, professionData, theme, categoryFilter)
+        self.UpdateScrollRange()
+    end
+    
+    professionViewerFrame = frame
+    return frame
 end
 
--- Create statistics panel with detailed analysis
-function PL.CreateStatisticsPanel(parent)
-    local panel = CreateFrame("Frame", nil, parent)
-    panel:SetAllPoints()
+-- Helper function to get difficulty color from recipe data
+local function GetRecipeDifficultyColor(difficulty)
+    if not difficulty then return "grey" end
     
-    -- Transparent panel background
-    local bg = panel:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 0) -- Fully transparent background
-    
-    -- Statistics content will be populated dynamically
-    local statsText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    statsText:SetPoint("CENTER", panel, "CENTER", 0, 0)
-    statsText:SetText("Detailed statistics coming soon...")
-    statsText:SetTextColor(1, 0.82, 0)
-    panel.statsText = statsText
-    
-    return panel
+    if type(difficulty) == "table" then
+        -- New format: table with color and text fields
+        return difficulty.color or difficulty.text or "grey"
+    else
+        -- Old format: simple string
+        return tostring(difficulty)
+    end
 end
 
--- Switch between viewer tabs
-function PL.SwitchViewerTab(tabIndex)
-    local frame = professionViewerFrame
-    if not frame or not frame.tabs then return end
+-- Helper function to set text color based on difficulty
+local function SetDifficultyTextColor(fontString, difficulty)
+    local difficultyColor = GetRecipeDifficultyColor(difficulty)
     
-    -- Update tab appearance
-    for i, tab in ipairs(frame.tabs) do
-        if i == tabIndex then
-            tab.text:SetTextColor(1, 0.82, 0) -- Active tab (gold)
-            tab:SetNormalTexture("Interface\\ChatFrame\\ChatFrameTab")
-        else
-            tab.text:SetTextColor(0.7, 0.7, 0.7) -- Inactive tab (gray)
-            tab:SetNormalTexture("Interface\\ChatFrame\\ChatFrameTabInactive")
+    if difficultyColor == "orange" then
+        fontString:SetTextColor(1, 0.5, 0)
+    elseif difficultyColor == "yellow" then
+        fontString:SetTextColor(1, 1, 0)
+    elseif difficultyColor == "green" then
+        fontString:SetTextColor(0, 1, 0)
+    elseif difficultyColor == "trivial" or difficultyColor == "grey" or difficultyColor == "gray" then
+        fontString:SetTextColor(0.5, 0.5, 0.5)
+    else
+        fontString:SetTextColor(0.5, 0.5, 0.5)
+    end
+end
+
+-- Display detailed recipe information in the right panel
+function PL.DisplayRecipeDetails(rightPanel, recipe, theme)
+    -- Clear existing content in right panel with comprehensive approach
+    Debug("DisplayRecipeDetails: Clearing right panel")
+    
+    -- Initialize display elements tracking if not exists
+    if not rightPanel.displayElements then
+        rightPanel.displayElements = {}
+    end
+    
+    -- Method 1: Hide and reparent all children
+    local childCount = rightPanel:GetNumChildren()
+    Debug("Clearing " .. childCount .. " existing children from right panel")
+    
+    for i = 1, childCount do
+        local child = select(i, rightPanel:GetChildren())
+        if child then
+            child:Hide()
+            child:SetParent(nil)
         end
     end
     
-    -- Show/hide panels
-    if frame.overviewPanel then frame.overviewPanel:SetShown(tabIndex == 1) end
-    if frame.recipesPanel then frame.recipesPanel:SetShown(tabIndex == 2) end
-    if frame.statsPanel then frame.statsPanel:SetShown(tabIndex == 3) end
+    -- Method 2: Clear tracked display elements
+    if rightPanel.displayElements then
+        Debug("Clearing " .. #rightPanel.displayElements .. " tracked elements from right panel")
+        for _, element in ipairs(rightPanel.displayElements) do
+            if element then
+                element:Hide()
+                element:SetParent(nil)
+            end
+        end
+    end
+    rightPanel.displayElements = {}
     
-    frame.activeTab = tabIndex
+    -- Method 3: Force a layout update
+    rightPanel:SetHeight(rightPanel:GetHeight())
     
-    Debug("Switched to tab " .. tabIndex)
+    Debug("After clearing, right panel children count: " .. rightPanel:GetNumChildren())
+    
+    if not recipe then
+        -- Show placeholder text when no recipe is selected
+        local placeholderText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        placeholderText:SetPoint("CENTER", rightPanel, "CENTER", 0, 0)
+        placeholderText:SetText("Select a recipe to view details")
+        placeholderText:SetTextColor(theme.secondary[1], theme.secondary[2], theme.secondary[3])
+        
+        -- Track this element
+        table.insert(rightPanel.displayElements, placeholderText)
+        return
+    end
+    
+    local yOffset = -20
+    
+    -- Recipe Name Header
+    local nameHeader = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    nameHeader:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 20, yOffset)
+    nameHeader:SetText(recipe.name or "Unknown Recipe")
+    nameHeader:SetTextColor(theme.accent[1], theme.accent[2], theme.accent[3])
+    table.insert(rightPanel.displayElements, nameHeader)
+    yOffset = yOffset - 30
+    
+    -- Recipe Level/Difficulty Info
+    if recipe.level and recipe.maxLevel then
+        local levelText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        levelText:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 20, yOffset)
+        levelText:SetText("Required Level: " .. recipe.level .. " - " .. recipe.maxLevel)
+        levelText:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+        table.insert(rightPanel.displayElements, levelText)
+        yOffset = yOffset - 20
+    end
+    
+    -- Difficulty Color
+    if recipe.difficulty then
+        local difficultyText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        difficultyText:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 20, yOffset)
+        
+        -- Handle both string and table formats for difficulty
+        local difficultyValue = recipe.difficulty
+        local difficultyDisplay = ""
+        
+        if type(difficultyValue) == "table" then
+            -- New format: table with color and text fields
+            difficultyDisplay = difficultyValue.text or difficultyValue.color or "unknown"
+        else
+            -- Old format: simple string
+            difficultyDisplay = tostring(difficultyValue)
+        end
+        
+        difficultyText:SetText("Difficulty: " .. difficultyDisplay:upper())
+        SetDifficultyTextColor(difficultyText, recipe.difficulty)
+        table.insert(rightPanel.displayElements, difficultyText)
+        
+        yOffset = yOffset - 30
+    end
+    
+    -- Materials Section
+    if recipe.reagents and #recipe.reagents > 0 then
+        local materialsHeader = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        materialsHeader:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 20, yOffset)
+        materialsHeader:SetText("Materials Required:")
+        materialsHeader:SetTextColor(theme.accent[1], theme.accent[2], theme.accent[3])
+        table.insert(rightPanel.displayElements, materialsHeader)
+        yOffset = yOffset - 25
+        
+        for _, reagent in ipairs(recipe.reagents) do
+            local materialText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            materialText:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 40, yOffset)
+            materialText:SetText("• " .. (reagent.count or 1) .. "x " .. (reagent.name or "Unknown Material"))
+            materialText:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+            table.insert(rightPanel.displayElements, materialText)
+            yOffset = yOffset - 16
+        end
+        
+        yOffset = yOffset - 10
+    end
+    
+    -- Tools Section
+    if recipe.tools and #recipe.tools > 0 then
+        local toolsHeader = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        toolsHeader:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 20, yOffset)
+        toolsHeader:SetText("Tools Required:")
+        toolsHeader:SetTextColor(theme.accent[1], theme.accent[2], theme.accent[3])
+        table.insert(rightPanel.displayElements, toolsHeader)
+        yOffset = yOffset - 25
+        
+        for _, tool in ipairs(recipe.tools) do
+            local toolText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            toolText:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 40, yOffset)
+            toolText:SetText("• " .. (tool.name or "Unknown Tool"))
+            toolText:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+            table.insert(rightPanel.displayElements, toolText)
+            yOffset = yOffset - 16
+        end
+        
+        yOffset = yOffset - 10
+    end
+    
+    -- Additional Recipe Info
+    if recipe.description then
+        local descHeader = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        descHeader:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 20, yOffset)
+        descHeader:SetText("Description:")
+        descHeader:SetTextColor(theme.accent[1], theme.accent[2], theme.accent[3])
+        table.insert(rightPanel.displayElements, descHeader)
+        yOffset = yOffset - 25
+        
+        local descText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        descText:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 40, yOffset)
+        descText:SetText(recipe.description)
+        descText:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+        descText:SetWidth(rightPanel:GetWidth() - 60)
+        table.insert(rightPanel.displayElements, descText)
+        yOffset = yOffset - 20
+    end
+    
+    -- Placeholder for future pricing information
+    local pricingHeader = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    pricingHeader:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 20, yOffset - 20)
+    pricingHeader:SetText("Pricing Information:")
+    pricingHeader:SetTextColor(theme.accent[1], theme.accent[2], theme.accent[3])
+    table.insert(rightPanel.displayElements, pricingHeader)
+    
+    local pricingText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    pricingText:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 40, yOffset - 45)
+    pricingText:SetText("• Material costs and pricing data will be added in future updates")
+    pricingText:SetTextColor(theme.secondary[1], theme.secondary[2], theme.secondary[3])
+    table.insert(rightPanel.displayElements, pricingText)
 end
 
--- Filter recipes in the recipes panel
-function PL.FilterRecipes(searchText)
-    -- Implementation will be added when populating recipe data
-    Debug("Filtering recipes with: " .. (searchText or ""))
+-- Create unified profession display inspired by original WoW profession UI
+function PL.CreateUnifiedProfessionDisplay(parent, professionData, theme, categoryFilter)
+    Debug("CreateUnifiedProfessionDisplay called with:")
+    Debug("  player: " .. tostring(professionData and professionData.player))
+    Debug("  profession: " .. tostring(professionData and professionData.profession))
+    Debug("  level: " .. tostring(professionData and professionData.level))
+    Debug("  recipes count: " .. tostring(professionData and professionData.recipes and #professionData.recipes or "nil"))
+    Debug("  category filter: " .. tostring(categoryFilter or "none"))
+    
+    -- Clear existing content with more thorough approach
+    local childCount = parent:GetNumChildren()
+    Debug("Clearing " .. childCount .. " existing children")
+    
+    -- Method 1: Hide and reparent all children
+    for i = 1, childCount do
+        local child = select(i, parent:GetChildren())
+        if child then
+            child:Hide()
+            child:SetParent(nil)
+        end
+    end
+    
+    -- Method 2: Store references and clear them explicitly
+    if parent.displayElements then
+        for _, element in ipairs(parent.displayElements) do
+            if element and element.Hide then
+                element:Hide()
+                element:SetParent(nil)
+            end
+        end
+    end
+    parent.displayElements = {}
+    
+    -- Method 3: Force a layout update
+    parent:SetHeight(1)
+    
+    Debug("After clearing, children count: " .. parent:GetNumChildren())
+    
+    if not professionData then
+        local noDataText = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        noDataText:SetPoint("CENTER", parent, "CENTER", 0, 0)
+        noDataText:SetText("No profession data available")
+        noDataText:SetTextColor(theme.text[1] * 0.7, theme.text[2] * 0.7, theme.text[3] * 0.7)
+        parent:SetHeight(100)
+        
+        -- Track this element
+        table.insert(parent.displayElements, noDataText)
+        return
+    end
+    
+    local yOffset = -20
+    local contentHeight = 0
+    
+    -- Skill level bar (like original profession window)
+    if professionData.level then
+        local skillLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        skillLabel:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, yOffset)
+        skillLabel:SetText("Skill: " .. (professionData.level or "0") .. " / " .. (professionData.maxLevel or "300"))
+        skillLabel:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+        
+        local skillBar = CreateFrame("StatusBar", nil, parent)
+        skillBar:SetSize(400, 16)
+        skillBar:SetPoint("TOPLEFT", skillLabel, "BOTTOMLEFT", 0, -5)
+        skillBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+        skillBar:SetStatusBarColor(theme.accent[1], theme.accent[2], theme.accent[3], 1)
+        skillBar:SetMinMaxValues(0, professionData.maxLevel or 300)
+        skillBar:SetValue(professionData.level or 0)
+        
+        local skillBg = skillBar:CreateTexture(nil, "BACKGROUND")
+        skillBg:SetAllPoints()
+        skillBg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+        skillBg:SetVertexColor(theme.secondary[1], theme.secondary[2], theme.secondary[3], 0.8)
+        
+        -- Track these elements
+        table.insert(parent.displayElements, skillLabel)
+        table.insert(parent.displayElements, skillBar)
+        
+        yOffset = yOffset - 50
+        contentHeight = contentHeight + 50
+    end
+    
+    -- Recipe list organized by categories
+    if professionData.recipes and #professionData.recipes > 0 then
+        -- Check if we have categories in the data structure
+        local hasCategories = professionData.categories and next(professionData.categories)
+        
+        Debug("Recipe organization:")
+        Debug("  Total recipes: " .. #professionData.recipes)
+        Debug("  Categories available: " .. tostring(hasCategories))
+        if professionData.categories then
+            Debug("  Categories object type: " .. type(professionData.categories))
+            for catName, indices in pairs(professionData.categories) do
+                Debug("    Category '" .. catName .. "': " .. (indices and #indices or "nil") .. " recipes")
+            end
+        end
+        
+        if hasCategories then
+            Debug("Found categories: " .. tostring(PL.GetTableSize(professionData.categories)))
+            
+            -- Display recipes by category (filtered if specified)
+            for categoryName, recipeIndices in pairs(professionData.categories) do
+                if recipeIndices and #recipeIndices > 0 then
+                    -- Only show category if filter allows it
+                    local showCategory = not categoryFilter or categoryFilter == "all" or categoryFilter == categoryName
+                    
+                    if showCategory then
+                        -- Category header
+                        local categoryHeader = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+                        categoryHeader:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, yOffset)
+                        categoryHeader:SetText(categoryName .. " (" .. #recipeIndices .. ")")
+                        categoryHeader:SetTextColor(theme.accent[1], theme.accent[2], theme.accent[3])
+                        
+                        -- Track this element
+                        table.insert(parent.displayElements, categoryHeader)
+                        
+                        yOffset = yOffset - 25
+                        contentHeight = contentHeight + 25
+                    
+                    -- List recipes in this category
+                    for _, recipeIndex in ipairs(recipeIndices) do
+                        local recipe = professionData.recipes[recipeIndex]
+                        if recipe then
+                            local recipeButton = CreateFrame("Button", nil, parent)
+                            recipeButton:SetSize(400, 16)
+                            recipeButton:SetPoint("TOPLEFT", parent, "TOPLEFT", 40, yOffset)
+                            
+                            local recipeText = recipeButton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                            recipeText:SetPoint("LEFT", recipeButton, "LEFT", 0, 0)
+                            recipeText:SetText("• " .. (recipe.name or "Unknown Recipe"))
+                            
+                            -- Color code by difficulty like original UI
+                            SetDifficultyTextColor(recipeText, recipe.difficulty)
+                            
+                            -- Add hover effect for clickability
+                            recipeButton:SetScript("OnEnter", function(self)
+                                recipeText:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+                            end)
+                            recipeButton:SetScript("OnLeave", function(self)
+                                -- Restore original color
+                                SetDifficultyTextColor(recipeText, recipe.difficulty)
+                            end)
+                            
+                            -- Add click handler to show recipe details in right panel
+                            recipeButton:SetScript("OnClick", function(self)
+                                -- Get the main profession viewer frame
+                                local mainFrame = parent
+                                while mainFrame and not mainFrame.rightPanel do
+                                    mainFrame = mainFrame:GetParent()
+                                end
+                                
+                                if mainFrame and mainFrame.rightPanel then
+                                    PL.DisplayRecipeDetails(mainFrame.rightPanel, recipe, theme)
+                                    Debug("Displaying details for recipe: " .. (recipe.name or "Unknown"))
+                                else
+                                    Debug("Could not find right panel for recipe details")
+                                end
+                            end)
+                            
+                            -- Track this element
+                            table.insert(parent.displayElements, recipeButton)
+                            
+                            yOffset = yOffset - 16
+                            contentHeight = contentHeight + 16
+                        end
+                    end
+                    
+                    -- Add spacing between categories
+                    yOffset = yOffset - 10
+                    contentHeight = contentHeight + 10
+                    end  -- Close the if showCategory block
+                end
+            end
+        else
+            Debug("No categories found, listing all recipes")
+            
+            -- No categories, list all recipes in one section
+            local recipeHeader = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            recipeHeader:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, yOffset)
+            recipeHeader:SetText("Known Recipes (" .. #professionData.recipes .. ")")
+            recipeHeader:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+            
+            yOffset = yOffset - 25
+            contentHeight = contentHeight + 25
+            
+            -- List all recipes
+            for i, recipe in ipairs(professionData.recipes) do
+                local recipeButton = CreateFrame("Button", nil, parent)
+                recipeButton:SetSize(400, 16)
+                recipeButton:SetPoint("TOPLEFT", parent, "TOPLEFT", 40, yOffset)
+                
+                local recipeText = recipeButton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                recipeText:SetPoint("LEFT", recipeButton, "LEFT", 0, 0)
+                recipeText:SetText("• " .. (recipe.name or "Unknown Recipe"))
+                
+                -- Color code by difficulty like original UI
+                SetDifficultyTextColor(recipeText, recipe.difficulty)
+                
+                -- Add hover effect for clickability
+                recipeButton:SetScript("OnEnter", function(self)
+                    recipeText:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+                end)
+                recipeButton:SetScript("OnLeave", function(self)
+                    -- Restore original color
+                    SetDifficultyTextColor(recipeText, recipe.difficulty)
+                end)
+                
+                -- Add click handler to show recipe details in right panel
+                recipeButton:SetScript("OnClick", function(self)
+                    -- Get the main profession viewer frame
+                    local mainFrame = parent
+                    while mainFrame and not mainFrame.rightPanel do
+                        mainFrame = mainFrame:GetParent()
+                    end
+                    
+                    if mainFrame and mainFrame.rightPanel then
+                        PL.DisplayRecipeDetails(mainFrame.rightPanel, recipe, theme)
+                        Debug("Displaying details for recipe: " .. (recipe.name or "Unknown"))
+                    else
+                        Debug("Could not find right panel for recipe details")
+                    end
+                end)
+                
+                yOffset = yOffset - 16
+                contentHeight = contentHeight + 16
+            end
+        end
+    else
+        -- No recipes available
+        local noRecipesText = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        noRecipesText:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, yOffset)
+        noRecipesText:SetText("No recipes available")
+        noRecipesText:SetTextColor(theme.text[1] * 0.7, theme.text[2] * 0.7, theme.text[3] * 0.7)
+        
+        yOffset = yOffset - 30
+        contentHeight = contentHeight + 30
+    end
+    
+    parent:SetHeight(math.max(contentHeight + 40, 300))
 end
 
--- Show profession viewer with data using modern tabbed interface
-function PL.ShowProfessionData(playerName, professionName, snapshot)
+-- Set category filter and refresh display
+function PL.SetCategoryFilter(frame, category, displayName)
+    if not frame or not frame.categoryFilter then
+        return
+    end
+    
+    frame.categoryFilter.currentCategory = category
+    
+    -- Update dropdown text
+    if displayName then
+        UIDropDownMenu_SetText(frame.categoryFilter.dropdown, displayName)
+    else
+        UIDropDownMenu_SetText(frame.categoryFilter.dropdown, category == "all" and "All Categories" or category)
+    end
+    
+    -- Refresh the profession display with filter
+    local professionData = frame.currentProfessionData
+    if professionData then
+        local theme = CB.getThemeColors()
+        PL.CreateUnifiedProfessionDisplay(frame.scrollChild, professionData, theme, category)
+        frame.UpdateScrollRange()
+    end
+end
+    
+-- Switch viewer tab function - removed since we now use single unified view
+-- This function remains for backward compatibility but does nothing
+function PL.SwitchViewerTab(tabIndex)
+    Debug("SwitchViewerTab called but tab system has been replaced with unified view")
+end
+
+-- Generate and show profession link
+function PL.GenerateAndShowProfessionLink(frame)
+    if not frame then 
+        Debug("GenerateAndShowProfessionLink: No frame provided")
+        return 
+    end
+    
+    local playerName = frame.currentPlayerName or UnitName("player") or "Unknown"
+    local professionName = frame.currentProfessionName or "Unknown"
+    
+    Debug("GenerateAndShowProfessionLink: Creating link for " .. playerName .. "'s " .. professionName)
+    
+    -- Generate the proper hyperlink format (same as scanopen workflow)
+    local linkData = string.format("%s:%s", playerName, professionName)
+    local linkText = string.format("[%s's %s]", playerName, professionName)
+    local hyperlink = string.format("|HcraftersProfession:%s|h%s|h", linkData, linkText)
+    
+    local theme = CB.getThemeColors()
+    if not theme then
+        Debug("GenerateAndShowProfessionLink: No theme available, using defaults")
+        theme = { primary = {0.1, 0.1, 0.1}, accent = {0.5, 0.5, 1}, text = {1, 1, 1} }
+    end
+    
+    -- Create a container frame for the EditBox with backdrop support
+    local container = CreateFrame("Frame", nil, frame)
+    container:SetSize(410, 40)
+    container:SetPoint("CENTER", frame, "CENTER", 0, 100)
+    
+    -- Apply backdrop styling to the container
+    if CB.UI and CB.UI.SetBackdropCompat then
+        CB.UI.SetBackdropCompat(container, {
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Common\\Common-Input-Border",
+            tile = true, tileSize = 8, edgeSize = 8,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        CB.UI.SetBackdropColorCompat(container, theme.primary[1], theme.primary[2], theme.primary[3], 1.0)
+        CB.UI.SetBackdropBorderColorCompat(container, theme.accent[1], theme.accent[2], theme.accent[3], 1.0)
+    else
+        Debug("GenerateAndShowProfessionLink: CB.UI backdrop functions not available")
+    end
+    
+    -- Create the EditBox inside the container
+    local editBox = CreateFrame("EditBox", nil, container)
+    editBox:SetSize(394, 24)
+    editBox:SetPoint("CENTER", container, "CENTER", 0, 0)
+    editBox:SetAutoFocus(true)
+    editBox:SetText(hyperlink)
+    editBox:HighlightText()
+    editBox:SetFontObject("GameFontNormal")
+    editBox:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+    
+    local linkLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    linkLabel:SetPoint("BOTTOM", container, "TOP", 0, 5)
+    linkLabel:SetText("Profession Link (Ctrl+C to copy, Shift+Click to insert in chat):")
+    linkLabel:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+    
+    editBox:SetScript("OnEscapePressed", function(self)
+        container:Hide()
+        linkLabel:Hide()
+    end)
+    
+    editBox:SetScript("OnEnterPressed", function(self)
+        container:Hide()
+        linkLabel:Hide()
+    end)
+    
+    Debug("GenerateAndShowProfessionLink: Link dialog created successfully")
+end
+
+-- Show profession data function - this displays profession data using the unified view
+function PL.ShowProfessionData(professionData)
+    if not professionData then
+        Debug("No profession data provided to ShowProfessionData")
+        return
+    end
+    
     local frame = PL.CreateProfessionViewer()
-    
-    -- Store current data for link generation
-    frame.currentPlayerName = playerName
-    frame.currentProfessionName = professionName
-    frame.currentSnapshot = snapshot
-    
-    -- Safety check: ensure viewer components were created
-    if not frame.overviewPanel or not frame.recipesPanel then
-        Debug("ERROR: Viewer panels not properly initialized")
-        return
-    end
-    
-    Debug("ShowProfessionData called with modern UI:")
-    Debug("  playerName: " .. tostring(playerName))
-    Debug("  professionName: " .. tostring(professionName))
-    Debug("  snapshot exists: " .. tostring(snapshot ~= nil))
-    if snapshot then
-        Debug("  snapshot.name: " .. tostring(snapshot.name))
-        Debug("  snapshot.rank: " .. tostring(snapshot.rank))
-        Debug("  snapshot.maxRank: " .. tostring(snapshot.maxRank))
-        Debug("  snapshot.recipes count: " .. tostring(#snapshot.recipes))
-    end
-    
-    -- Update main window title
-    frame.TitleText:SetText(playerName .. "'s " .. professionName)
-    
-    if not snapshot then
-        -- Show error state
-        frame.loadingText:SetText("No profession data available")
-        frame.loadingText:SetTextColor(1, 0.5, 0.5)
-        frame.loadingText:Show()
+    if frame then
+        -- Set profession icon in title bar
+        if frame.ProfessionIcon then
+            frame.ProfessionIcon:SetTexture("Interface\\Icons\\Trade_" .. (professionData.profession or "Alchemy"))
+        end
+        
+        frame:DisplayProfessionData(professionData)
+        frame.TitleText:SetText((professionData.profession or "Profession") .. " - " .. (professionData.player or "Unknown"))
         frame:Show()
-        return
+        Debug("Displayed profession data for: " .. (professionData.player or "Unknown") .. " (" .. (professionData.profession or "Unknown") .. ")")
     end
-    
-    -- Hide loading text
-    frame.loadingText:Hide()
-    
-    -- Update overview panel
-    PL.UpdateOverviewPanel(frame.overviewPanel, playerName, snapshot)
-    
-    -- Update recipes panel
-    PL.UpdateRecipesPanel(frame.recipesPanel, snapshot)
-    
-    -- Update statistics panel
-    PL.UpdateStatisticsPanel(frame.statsPanel, snapshot)
-    
-    -- Show the frame and ensure overview tab is active
-    PL.SwitchViewerTab(1)
-    frame:Show()
-    
-    Debug("Profession viewer updated with modern tabbed interface")
+end
+
+-- Filter recipes function - placeholder for backward compatibility
+function PL.FilterRecipes(searchText)
+    Debug("FilterRecipes called with: " .. (searchText or ""))
 end
 
 -- Update overview panel with profession data
@@ -3517,26 +3760,7 @@ function PL.StopAutoSave()
     end
 end
 
--- Generate and display profession link in the viewer
-function PL.GenerateAndShowProfessionLink(viewerFrame)
-    if not viewerFrame or not viewerFrame.currentPlayerName or not viewerFrame.currentProfessionName then
-        print("|cffffff00CraftersBoard|r No profession data currently displayed")
-        return
-    end
-    
-    local playerName = viewerFrame.currentPlayerName
-    local professionName = viewerFrame.currentProfessionName
-    
-    -- Generate the custom profession link
-    local linkData = string.format("%s:%s", playerName, professionName)
-    local linkText = string.format("[%s's %s]", playerName, professionName)
-    local fullLink = string.format("|HcraftersProfession:%s|h%s|h", linkData, linkText)
-    
-    -- Show the link in a clickable frame
-    PL.ShowProfessionLink(fullLink, playerName, professionName)
-    
-    print("|cffffff00CraftersBoard|r Generated profession link for " .. playerName .. "'s " .. professionName)
-end
+-- Old duplicate function removed
 
 -- Show a profession link dialog
 function PL.ShowProfessionLink(link, playerName, professionName)
@@ -3727,7 +3951,18 @@ function PL.HandleProfessionLink(link)
     end
     
     if snapshot then
-        PL.ShowProfessionData(playerName, professionName, snapshot)
+        -- Create the proper profession data structure with correct field mapping
+        local professionData = {
+            player = playerName,
+            profession = professionName,
+            level = snapshot.rank,  -- Map rank -> level
+            maxLevel = snapshot.maxRank,  -- Map maxRank -> maxLevel
+            recipes = snapshot.recipes,
+            categories = snapshot.categories,  -- Pass through categories for organization
+            timestamp = snapshot.timestamp,
+            data = snapshot  -- Keep original data too
+        }
+        PL.ShowProfessionData(professionData)
         Debug("Showing cached data for " .. playerName .. "'s " .. professionName)
     else
         -- No data available - check if we should request it
