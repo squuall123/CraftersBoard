@@ -19,6 +19,7 @@ local UI = CB.UI
 -- Register all events
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
+eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("CHAT_MSG_CHANNEL")
 eventFrame:RegisterEvent("CHAT_MSG_YELL")
 eventFrame:RegisterEvent("CHAT_MSG_SAY")
@@ -36,16 +37,16 @@ local function isChannelAllowed(event, ...)
   local hints = CRAFTERSBOARD_DB.filters.channelHints or {"general","trade","commerce","lookingforgroup","services"}
   
   -- DEBUG: Log channel filtering
-  CB.DebugPrint("Channel filtering - channel:", channelName, "hints:", table.concat(hints, ","))
+  CB.Debug("Channel filtering - channel:" .. channelName .. " hints:" .. table.concat(hints, ","))
   
   for _, hint in ipairs(hints) do
     if channelName:find(hint:lower(), 1, true) then
-      CB.DebugPrint("Channel allowed - matched hint:", hint)
+      CB.Debug("Channel allowed - matched hint:" .. hint)
       return true
     end
   end
   
-  CB.DebugPrint("Channel not allowed - no matching hints")
+  CB.Debug("Channel not allowed - no matching hints")
   return false
 end
 
@@ -122,11 +123,11 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     local name = ...
     if name == ADDON_NAME then
       -- Initialize database first
-      if CB.initDB then 
-        CB.initDB() 
+      if CB.InitDatabase then 
+        CB.InitDatabase() 
         -- DEBUG: Show channel hints after DB init
         local hints = CRAFTERSBOARD_DB.filters.channelHints or {}
-        CB.DebugPrint("After DB init, channel hints:", table.concat(hints, ","))
+        CB.Debug("After DB init, channel hints:" .. table.concat(hints, ","))
       end
       
       -- Initialize all systems
@@ -136,13 +137,29 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         if CB.EnsureOptionsCategory then CB.EnsureOptionsCategory() end
       end
       if CB.createMinimapButton then CB.createMinimapButton() end
+      
+      -- Initialize ProfessionLinks module
+      if CB.ProfessionLinks and CB.ProfessionLinks.Initialize then
+        CB.ProfessionLinks.Initialize()
+      end
+      
       TryHookAuctionator()
       
       print("|cff00ff88CraftersBoard|r loaded. Type |cffffff00/cb|r to toggle.")
     elseif name == "Auctionator" then
       TryHookAuctionator()
-      if UI and UI.frame and UI.frame:IsShown() and UI.Force then UI.Force() end
     end
+  elseif event == "PLAYER_LOGOUT" then
+    -- Save profession cache and stop auto-save timer
+    if CB.ProfessionLinks then
+      if CB.ProfessionLinks.SaveCache then
+        CB.ProfessionLinks.SaveCache()
+      end
+      if CB.ProfessionLinks.StopAutoSave then
+        CB.ProfessionLinks.StopAutoSave()
+      end
+    end
+    if UI and UI.frame and UI.frame:IsShown() and UI.Force then UI.Force() end
     return
     
   elseif event == "PLAYER_LOGIN" then
@@ -166,38 +183,38 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     local originalMsg = msg
     msg = CB.ParseIconMarkup(msg)
     if originalMsg ~= msg then
-      CB.DebugPrint("Icon markup parsed - before:", originalMsg:sub(1,50), "after:", msg:sub(1,50))
+      CB.Debug("Icon markup parsed - before:" .. originalMsg:sub(1,50) .. " after:" .. msg:sub(1,50))
     end
   end
   
   -- Handle different chat event types
   if event == "CHAT_MSG_CHANNEL" then
     channelName = select(4, ...) or select(9, ...)
-    CB.DebugPrint("Channel name:", channelName)
-    if not isChannelAllowed(event, ...) then 
-      CB.DebugPrint("Channel not allowed")
+    CB.Debug("Channel name:" .. (channelName or "nil"))
+    if not isChannelAllowed(event, ...) then
+      CB.Debug("Channel not allowed")
       return 
     end
   else
     -- Handle other chat events (SAY, YELL, GUILD)
     channelName = (event == "CHAT_MSG_SAY" and "SAY") or (event == "CHAT_MSG_YELL" and "YELL") or (event == "CHAT_MSG_GUILD" and "GUILD") or ""
-    CB.DebugPrint("Non-channel event", event, "mapped to channel:", channelName)
+    CB.Debug("Non-channel event " .. event .. " mapped to channel:" .. (channelName or "nil"))
   end
 
-  CB.DebugPrint("Chat event", event, "from", player or "?", "msg:", (msg or ""):sub(1,50))
+  CB.Debug("Chat event " .. event .. " from " .. tostring(player or "?") .. " msg:" .. (msg or ""):sub(1,50))
 
   -- Quick pre-filter & classification
-  CB.DebugPrint("Function checks - ExtractProfessions:", CB.ExtractProfessions and "exists" or "missing")
-  CB.DebugPrint("Function checks - LooksCraftingRelated:", CB.LooksCraftingRelated and "exists" or "missing")
-  CB.DebugPrint("Function checks - ClassifyIntent:", CB.ClassifyIntent and "exists" or "missing")
+  CB.Debug("Function checks - ExtractProfessions:" .. (CB.ExtractProfessions and "exists" or "missing"))
+  CB.Debug("Function checks - LooksCraftingRelated:" .. (CB.LooksCraftingRelated and "exists" or "missing"))
+  CB.Debug("Function checks - ClassifyIntent:" .. (CB.ClassifyIntent and "exists" or "missing"))
   
   local profs = CB.ExtractProfessions and CB.ExtractProfessions(msg) or {}
   local crafting = CB.LooksCraftingRelated and CB.LooksCraftingRelated(msg, profs) or false
   local intent = CB.ClassifyIntent and CB.ClassifyIntent(msg) or "UNKNOWN"
 
   -- DEBUG: Log parsing results
-  CB.DebugPrint("Professions found:", #profs > 0 and table.concat(profs, ",") or "none")
-  CB.DebugPrint("Crafting related:", crafting, "Intent:", intent)
+  CB.Debug("Professions found:" .. (#profs > 0 and table.concat(profs, ",") or "none"))
+  CB.Debug("Crafting related:" .. tostring(crafting) .. " Intent:" .. (intent or "nil"))
 
   -- Strict mode filtering
   if CRAFTERSBOARD_DB.filters.strict then
@@ -206,18 +223,18 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     local instanceish = CB.ContainsAny and CB.ContainsAny(m, CB.RAID_DUNGEON_TERMS) or false
     local crafting = CB.LooksCraftingRelated and CB.LooksCraftingRelated(msg, profs) or false
     
-    CB.DebugPrint("Strict mode analysis - groupish:", groupish, "instanceish:", instanceish, "crafting:", crafting)
+    CB.Debug("Strict mode analysis - groupish:" .. tostring(groupish) .. " instanceish:" .. tostring(instanceish) .. " crafting:" .. tostring(crafting))
     
     -- Drop if it mentions instances/raids and is not clearly crafting related
     if instanceish and not crafting then
-      CB.DebugPrint("Dropped by strict mode - mentions instances/raids without clear crafting context")
+      CB.Debug("Dropped by strict mode - mentions instances/raids without clear crafting context")
       return
     end
     
     -- Drop if it's groupish and either not crafting or mentions instances
     if groupish then
       if not crafting or instanceish then
-        CB.DebugPrint("Dropped by strict mode - groupish and either not crafting or mentions instances")
+        CB.Debug("Dropped by strict mode - groupish and either not crafting or mentions instances")
         return
       end
     end
@@ -225,17 +242,17 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
 
   -- Filter out messages with no clear intent or professions
   if intent == "UNKNOWN" and #profs == 0 then
-    CB.DebugPrint("Skipped - no intent and no professions")
+    CB.Debug("Skipped - no intent and no professions")
     return
   end
 
   -- Add entry
-  CB.DebugPrint("Adding entry for", player)
+  CB.Debug("Adding entry for " .. (player or "unknown"))
   if CB.addOrRefreshEntry then
     local entry = CB.addOrRefreshEntry(player, msg, intent, profs, channelName)
-    CB.DebugPrint("Entry added:", entry and "success" or "failed")
+    CB.Debug("Entry added:" .. (entry and "success" or "failed"))
   else
-    CB.DebugPrint("addOrRefreshEntry function not found!")
+    CB.Debug("addOrRefreshEntry function not found!")
   end
 
   -- Refresh UI if visible

@@ -8,7 +8,10 @@
 # Core initialization and utilities
 Core\Init.lua
 Core\Database.lua
+Data\Vanilla.lua
+Core\DataDictionary.lua
 Core\Professions.lua
+Core\ProfessionLinks.lua
 Core\ChatParser.lua
 Core\Mute.lua
 Core\EntryManager.lua

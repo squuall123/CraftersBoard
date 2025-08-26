@@ -62,7 +62,9 @@ function CB.Print(msg)
   print("|cff00ff88CraftersBoard|r " .. (msg or ""))
 end
 
--- Legacy debug function for compatibility - redirects to DebugPrint  
+-- Debug function that uses saved variable setting
 function CB.Debug(msg)
-  CB.DebugPrint(msg or "")
+  if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+    print("|cff00ff88CraftersBoard|r |cffff0000[DEBUG]|r " .. tostring(msg))
+  end
 end

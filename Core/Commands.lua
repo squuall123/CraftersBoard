@@ -258,6 +258,266 @@ local function handleSlashCommand(msg)
     else
       print("|cff00ff88CraftersBoard|r Icon parsing test function not available.")
     end
+    
+  elseif cmd == "testdict" then
+    if CB.DataDictionary and CB.DataDictionary.CompressProfessionData then
+      print("|cff00ff88CraftersBoard|r Testing dictionary compression system...")
+      print("  Using external Data/Vanilla.lua mappings")
+      
+      -- Test compression with sample data
+      local sampleSnapshot = {
+        name = "Test Player",
+        rank = 300,
+        maxRank = 300,
+        timestamp = time(),
+        recipes = {
+          {name = "Flask of the Titans", type = "optimal", category = "Alchemy"},
+          {name = "Mooncloth", type = "optimal", category = "Tailoring"}
+        }
+      }
+      
+      local compressed = CB.DataDictionary.CompressProfessionData(sampleSnapshot)
+      local decompressed = CB.DataDictionary.DecompressProfessionData(compressed)
+      local ratio = CB.DataDictionary.CalculateCompressionRatio(sampleSnapshot, compressed)
+      
+      print("  Original data: " .. (sampleSnapshot and "Valid" or "Invalid"))
+      print("  Compressed: " .. (compressed and "Success" or "Failed"))
+      print("  Decompressed: " .. (decompressed and "Success" or "Failed"))
+      print("  Compression ratio: " .. string.format("%.1f", ratio) .. "%")
+    else
+      print("|cff00ff88CraftersBoard|r DataDictionary module not available.")
+    end
+  
+  elseif cmd == "professionfilter" or cmd == "filtertest" then
+    -- Test profession filtering functionality  
+    local professionName = rest or "Alchemy"
+    if CB.DataDictionary then
+      local DD = CB.DataDictionary
+      
+      -- Get profession ID from name
+      local professionId = DD.GetProfessionId(professionName)
+      if not professionId then
+        CB.Print("Profession not found: " .. tostring(professionName))
+        CB.Print("Available professions:")
+        local professions = DD.GetAvailableProfessions()
+        for _, prof in ipairs(professions) do
+          CB.Print("  - " .. prof.name .. " (ID: " .. prof.id .. ", Recipes: " .. prof.recipeCount .. ")")
+        end
+        return
+      end
+      
+      CB.Print("Testing profession filter for: " .. DD.GetProfessionName(professionId) .. " (ID: " .. professionId .. ")")
+      
+      -- Get recipes for this profession
+      local recipes = DD.GetRecipesByProfession(professionId)
+      local count = 0
+      local sampleRecipes = {}
+      
+      for spellId, recipeName in pairs(recipes) do
+        count = count + 1
+        if count <= 5 then  -- Show first 5 as samples
+          table.insert(sampleRecipes, recipeName .. " (ID: " .. spellId .. ")")
+        end
+      end
+      
+      CB.Print("Found " .. count .. " recipes for " .. DD.GetProfessionName(professionId))
+      if #sampleRecipes > 0 then
+        CB.Print("Sample recipes:")
+        for _, recipe in ipairs(sampleRecipes) do
+          CB.Print("  - " .. recipe)
+        end
+        if count > 5 then
+          CB.Print("  ... and " .. (count - 5) .. " more")
+        end
+      end
+    else
+      CB.Print("DataDictionary module not available.")
+    end
+    if CB.DataDictionary and CB.DataDictionary.CompressProfessionData then
+      print("|cff00ff88CraftersBoard|r Testing dictionary compression system...")
+      print("  Using external Data/Vanilla.lua mappings")
+      
+      -- Show dictionary stats
+      local spellCount = 0
+      if CB.DataDictionary.SPELL_TO_RECIPE then
+        for _ in pairs(CB.DataDictionary.SPELL_TO_RECIPE) do
+          spellCount = spellCount + 1
+        end
+      end
+      print("  Loaded " .. spellCount .. " spell ID mappings")
+      
+      -- Create sample profession data
+      local sampleData = {
+        name = "Alchemy",
+        rank = 300,
+        maxRank = 300,
+        timestamp = time(),
+        recipes = {
+          {
+            name = "Flask of the Titans",
+            type = "craft",
+            category = "Alchemy", 
+            reagents = {
+              {name = "Gromsblood", required = 30, available = 25},
+              {name = "Stonescale Oil", required = 10, available = 15},
+              {name = "Black Lotus", required = 2, available = 1}
+            }
+          },
+          {
+            name = "Major Healing Potion",
+            type = "craft", 
+            category = "Alchemy",
+            reagents = {
+              {name = "Mountain Silversage", required = 2, available = 10},
+              {name = "Crystal Vial", required = 1, available = 20}
+            }
+          },
+          {
+            name = "Transmute: Arcanite",
+            type = "craft",
+            category = "Alchemy",
+            reagents = {
+              {name = "Arcane Crystal", required = 1, available = 0},
+              {name = "Thorium Bar", required = 1, available = 5}
+            }
+          }
+        },
+        categories = {}
+      }
+      
+      -- Test compression
+      local compressed = CB.DataDictionary.CompressProfessionData(sampleData)
+      if compressed then
+        print("✓ Dictionary compression successful")
+        print("  Original recipes: " .. #sampleData.recipes)
+        print("  Compressed recipes: " .. #compressed.rc)
+        
+        -- Show spell ID usage
+        local idsUsed = 0
+        local namesUsed = 0
+        for _, recipe in ipairs(compressed.rc) do
+          if recipe.id then
+            idsUsed = idsUsed + 1
+          else
+            namesUsed = namesUsed + 1
+          end
+        end
+        print("  Recipes using spell IDs: " .. idsUsed)
+        print("  Recipes using names (fallback): " .. namesUsed)
+        
+        -- Test decompression
+        local decompressed = CB.DataDictionary.DecompressProfessionData(compressed)
+        if decompressed then
+          print("✓ Dictionary decompression successful")
+          print("  Decompressed recipes: " .. #decompressed.recipes)
+          print("  Recipe names match: " .. (decompressed.recipes[1].name == sampleData.recipes[1].name and "✓" or "✗"))
+          
+          -- Calculate size reduction
+          local ratio = CB.DataDictionary.CalculateCompressionRatio(sampleData, compressed)
+          print("  Compression efficiency: " .. string.format("%.1f", ratio) .. "%")
+          print("✓ External dictionary data working correctly!")
+        else
+          print("✗ Dictionary decompression failed")
+        end
+      else
+        print("✗ Dictionary compression failed")
+      end
+    else
+      print("|cff00ff88CraftersBoard|r DataDictionary module not available.")
+    end
+    
+  elseif cmd == "dictinfo" then
+    -- Show dictionary information and statistics
+    if CB.DataDictionary then
+      print("|cff00ff88CraftersBoard|r Dictionary Information:")
+      
+      -- Use the new profession statistics function
+      local stats = CB.DataDictionary.GetProfessionStatistics()
+      
+      print("  Data source: " .. stats.dataSource)
+      print("  Total recipes: " .. stats.totalRecipes)
+      print("  Recipes by profession:")
+      
+      -- Sort professions by ID for consistent display
+      local sortedProfessions = {}
+      for professionId, profData in pairs(stats.professions) do
+        table.insert(sortedProfessions, {
+          id = professionId,
+          name = profData.name,
+          count = profData.recipeCount
+        })
+      end
+      
+      table.sort(sortedProfessions, function(a, b) return a.id < b.id end)
+      
+      for _, prof in ipairs(sortedProfessions) do
+        print("    " .. prof.name .. " (ID: " .. prof.id .. "): " .. prof.count .. " recipes")
+      end
+      
+      -- Show spell ID usage efficiency
+      local spellCount = 0
+      if CB.DataDictionary.SPELL_TO_RECIPE then
+        for _ in pairs(CB.DataDictionary.SPELL_TO_RECIPE) do
+          spellCount = spellCount + 1
+        end
+      end
+      
+      print("  Dictionary entries: " .. spellCount .. " spell IDs mapped")
+      
+      -- Show sample profession filtering
+      if CB.DataDictionary.RECIPES_BY_PROFESSION then
+        print("  Available professions for filtering:")
+        local professions = CB.DataDictionary.GetAvailableProfessions()
+        for i, prof in ipairs(professions) do
+          if i <= 3 then  -- Show first 3 as examples
+            print("    - " .. prof.name .. " (" .. prof.recipeCount .. " recipes)")
+          end
+        end
+        if #professions > 3 then
+          print("    ... and " .. (#professions - 3) .. " more")
+        end
+      end
+      
+      -- Show categories and types
+      local categoryCount = 0
+      if CB.DataDictionary.CATEGORY_TO_ID then
+        for _ in pairs(CB.DataDictionary.CATEGORY_TO_ID) do
+          categoryCount = categoryCount + 1
+        end
+      end
+      
+      local typeCount = 0
+      if CB.DataDictionary.TYPE_TO_ID then
+        for _ in pairs(CB.DataDictionary.TYPE_TO_ID) do
+          typeCount = typeCount + 1
+        end
+      end
+      
+      print("  Categories defined: " .. categoryCount)
+      print("  Types defined: " .. typeCount)
+      
+      -- Show data source
+      if CraftersBoard_VanillaData then
+        print("  Data source: External Data/Vanilla.lua ✓")
+      else
+        print("  Data source: External data not loaded ✗")
+      end
+      
+    else
+      print("|cff00ff88CraftersBoard|r DataDictionary module not available.")
+    end
+    
+  -- ProfessionLinks commands integration
+  elseif cmd == "link" or cmd == "post" or cmd == "trade" or cmd == "group" or cmd == "party" or cmd == "raid" or cmd == "scan" or 
+         cmd == "info" or cmd == "snapshots" or cmd == "cache" or 
+         cmd == "cleanup" or cmd == "stats" or cmd == "viewer" or cmd == "ui" or
+         cmd == "test" or cmd == "clear" then
+    -- Route to ProfessionLinks module
+    if CB.ProfessionLinks and CB.ProfessionLinks.HandleSlashCommand then
+      CB.ProfessionLinks.HandleSlashCommand(msg)
+    else
+      print("|cff00ff88CraftersBoard|r ProfessionLinks module not loaded.")
+    end
 
   else
     print("|cff00ff88CraftersBoard|r commands:")
@@ -278,6 +538,17 @@ local function handleSlashCommand(msg)
     print("  /cb mmb on|off|angle|reset  - minimap button controls")
     print("  /cb testicons               - test WoW icon markup parsing")
     print("  /cb options                 - open settings")
+    print("")
+    print("|cff00ff88CraftersBoard|r ProfessionLinks commands:")
+    print("  /cb link                    - generate profession link")
+    print("  /cb post                    - post profession link to say")
+    print("  /cb trade                   - post profession link to trade")
+    print("  /cb group                   - post profession link to group chat")
+    print("  /cb scan                    - scan current profession")
+    print("  /cb test scenario basic     - run profession link tests")
+    print("  /cb testdict                - test dictionary compression system")
+    print("  /cb professionfilter <name> - test profession filtering (e.g., Alchemy)")
+    print("  /cb dictinfo                - show dictionary statistics")
   end
 end
 
