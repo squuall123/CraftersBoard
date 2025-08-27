@@ -1,6 +1,5 @@
 ﻿-- Leatherworking.lua
--- Complete Leatherworking recipe database extracted from Recipe_Master
--- Optimized for CraftersBoard crafting service platform
+-- Complete Leatherworking recipe database
 
 local _, addon = ...
 

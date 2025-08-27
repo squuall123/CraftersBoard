@@ -1,6 +1,5 @@
 ﻿-- Engineering.lua
--- Complete Engineering recipe database extracted from Recipe_Master
--- Optimized for CraftersBoard crafting service platform
+-- Complete Engineering recipe database
 
 local _, addon = ...
 

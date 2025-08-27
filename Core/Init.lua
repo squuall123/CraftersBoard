@@ -1,26 +1,17 @@
 -- CraftersBoard - Core Initialization
--- Version: 1.0.0
 
 local ADDON_NAME = ...
 
--- Create addon namespace
 CraftersBoard = CraftersBoard or {}
 local CB = CraftersBoard
 
--- Export addon name for other modules
 CB.ADDON_NAME = ADDON_NAME
-
--- Core constants
 CB.VERSION = "1.0.0"
 
--- Saved variables will be initialized here
 CRAFTERSBOARD_DB = CRAFTERSBOARD_DB or {}
 
--- Math shortcuts
 local max, floor, min = math.max, math.floor, math.min
 local cos, sin, rad, deg = math.cos, math.sin, math.rad, math.deg
-
--- Utility functions
 function CB.atan2(y, x)
   if math.atan2 then return math.atan2(y, x) end
   if x == 0 then return (y > 0 and math.pi/2) or (y < 0 and -math.pi/2) or 0 end
@@ -57,18 +48,15 @@ function CB.agoStr(ts)
   end
 end
 
--- Print with addon prefix
 function CB.Print(msg)
   print("|cff00ff88CraftersBoard|r " .. (msg or ""))
 end
 
--- Debug function that uses saved variable setting
 function CB.Debug(msg)
   if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
     print("|cff00ff88CraftersBoard|r |cffff0000[DEBUG]|r " .. tostring(msg))
   end
 end
 
--- Mark as initialized
 CB.isInitialized = true
 print("CraftersBoard: Core initialized (CB.isInitialized = true)")

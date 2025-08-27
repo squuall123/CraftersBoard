@@ -1,6 +1,5 @@
 ﻿-- Tailoring.lua
--- Complete Tailoring recipe database extracted from Recipe_Master
--- Optimized for CraftersBoard crafting service platform
+-- Complete Tailoring recipe database
 
 local _, addon = ...
 

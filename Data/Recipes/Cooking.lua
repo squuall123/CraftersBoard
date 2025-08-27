@@ -1,6 +1,5 @@
 ﻿-- Cooking.lua
--- Complete Cooking recipe database extracted from Recipe_Master
--- Optimized for CraftersBoard crafting service platform
+-- Complete Cooking recipe database
 
 local _, addon = ...
 

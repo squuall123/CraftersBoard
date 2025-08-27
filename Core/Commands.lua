@@ -1,5 +1,4 @@
 -- CraftersBoard - Slash Commands
--- Version: 1.0.0
 
 local ADDON_NAME = ...
 local CB = CraftersBoard
@@ -12,13 +11,12 @@ end
 -- UI reference
 local UI = CB.UI
 
--- Helper function to parse duration
 function CB.parseDuration(s)
   s = CB.trim(s or "")
-  if s == "" then return 60*60, "60m" end
+  if s == "" then return (60*60), "60m" end
   local n, u = s:match("^(%d+)%s*([smhdSMHD]?)$")
   n = tonumber(n or "0") or 0
-  if n <= 0 then return 60*60, "60m" end
+  if n <= 0 then return (60*60), "60m" end
   u = (u or ""):lower()
   local secs, label
   if u == "s" then secs, label = n, (n.."s")
@@ -28,9 +26,8 @@ function CB.parseDuration(s)
   return secs, label
 end
 
--- Helper function to prune entries
 function CB.pruneEntries(olderThanSeconds)
-  local cutoff = CB.now() - (olderThanSeconds or 60*60)
+  local cutoff = CB.now() - (olderThanSeconds or (60*60))
   local removed = 0
   for i = #CRAFTERSBOARD_DB.entries, 1, -1 do
     local e = CRAFTERSBOARD_DB.entries[i]
@@ -42,7 +39,6 @@ function CB.pruneEntries(olderThanSeconds)
   return removed
 end
 
--- Main slash command handler
 local function handleSlashCommand(msg)
   msg = CB.trim(msg or "")
   

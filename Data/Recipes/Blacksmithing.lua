@@ -1,6 +1,5 @@
 ﻿-- Blacksmithing.lua
--- Complete Blacksmithing recipe database extracted from Recipe_Master
--- Optimized for CraftersBoard crafting service platform
+-- Complete Blacksmithing recipe database
 
 local _, addon = ...
 

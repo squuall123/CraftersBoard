@@ -1,22 +1,19 @@
 -- CraftersBoard - Database Management
--- Handles saved variables and defaults
 
 local CB = CraftersBoard
-
--- Default configuration
 CB.DEFAULTS = {
   filters = {
     showProviders = true,
     showRequesters = true,
     search = "",
     channelHints = {"general","trade","commerce","lookingforgroup","services"},
-    strict = true, -- drop LFG/boost/raid messages unless clearly crafting related
-    noiseCustom = { raids = {}, groups = {}, roles = {}, boosts = {} }, -- user-managed extra noise
-    showOfflineMembers = false, -- Show offline guild members in Guild Crafters tab
-    showFavoritesOnly = false, -- Show only favorite players in crafters/requests tabs
-    showRecentOnly = false, -- Show only entries created within the last 15 minutes
+    strict = true,
+    noiseCustom = { raids = {}, groups = {}, roles = {}, boosts = {} },
+    showOfflineMembers = false,
+    showFavoritesOnly = false,
+    showRecentOnly = false,
   },
-  debug = false, -- Enable debug output
+  debug = false,
   entries = {},
   maxEntries = 300,
   minimap = { show = true, angle = 200 },
@@ -25,14 +22,13 @@ CB.DEFAULTS = {
   window = { w = 840, h = 420, point = "CENTER", relPoint = "CENTER", x = 0, y = 0 },
   muted = { players = {}, phrases = {} },
   lastTab = 1,
-  theme = "default", -- Theme selection: default, vanilla, hardcore, tbc, wotlk
+  theme = "default",
   requestTemplates = {
     askForMats = "Hi! Could you please tell me what materials you need for your crafting services? Thanks!",
     askForPrice = "Hello! Could you please let me know your pricing for crafting services? Thank you!"
   },
 }
 
--- Initialize database with defaults
 function CB.InitDatabase()
   if type(CRAFTERSBOARD_DB) ~= "table" then CRAFTERSBOARD_DB = {} end
   
@@ -42,7 +38,6 @@ function CB.InitDatabase()
     end
   end
   
-  -- Ensure sub-tables exist
   CRAFTERSBOARD_DB.entries   = CRAFTERSBOARD_DB.entries   or {}
   CRAFTERSBOARD_DB.minimap   = CRAFTERSBOARD_DB.minimap   or CB.deepcopy(CB.DEFAULTS.minimap)
   CRAFTERSBOARD_DB.collapsed = CRAFTERSBOARD_DB.collapsed or CB.deepcopy(CB.DEFAULTS.collapsed)
@@ -84,7 +79,7 @@ function CB.ParseDuration(s)
 end
 
 function CB.PruneEntries(olderThanSeconds)
-  local cutoff = CB.now() - (olderThanSeconds or 60*60)
+  local cutoff = CB.now() - (olderThanSeconds or (60*60))
   local removed = 0
   for i = #CRAFTERSBOARD_DB.entries, 1, -1 do
     local e = CRAFTERSBOARD_DB.entries[i]
@@ -96,7 +91,6 @@ function CB.PruneEntries(olderThanSeconds)
   return removed
 end
 
--- Money display utilities
 CB.GOLD_TEX   = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t"
 CB.SILVER_TEX = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t"
 CB.COPPER_TEX = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t"
@@ -112,10 +106,8 @@ function CB.MoneyTextureString(c)
   return table.concat(parts, " ")
 end
 
--- Export alias for compatibility
 CB.initDB = CB.InitDatabase
 
--- Debug function
 function CB.DebugPrint(...)
   if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
     print("|cff00ff88[CB Debug]|r", ...)

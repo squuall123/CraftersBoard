@@ -87,33 +87,23 @@ if not CB.UI.SetBackdropBorderColorCompat then
     end
 end
 
--- Constants
 local ADDON_MESSAGE_PREFIX = "CBPROF"
 local PROTOCOL_VERSION = 1
--- Use a more compatible link format for Classic Era
 local LINK_FORMAT = "|Hcraftersboard:%s:%d:%d:%d|h[%s's %s (%d)]|h"
 
--- Data transmission constants
-local MAX_ADDON_MESSAGE_SIZE = 200 -- Conservative size for Classic Era
-local MAX_CHUNKS_PER_REQUEST = 100 -- Increased limit for larger profession data
-local CHUNK_SEND_DELAY = 0.05 -- Reduced delay for faster transmission
-local COMPRESSION_ENABLED = true -- Re-enabled to reduce data size
-local CHUNK_TIMEOUT = 30 -- Seconds to wait for chunks
-
--- Enhanced Recipe Data Optimization - Network Protocol V2
--- Send only profession ID, skill level, and known recipe IDs
--- Full recipe data is reconstructed locally using Enhanced Database
-local OPTIMIZE_NETWORK_DATA = true -- Use enhanced database for optimization
+local MAX_ADDON_MESSAGE_SIZE = 200
+local MAX_CHUNKS_PER_REQUEST = 100
+local CHUNK_SEND_DELAY = 0.05
+local COMPRESSION_ENABLED = true
+local CHUNK_TIMEOUT = 30
+local OPTIMIZE_NETWORK_DATA = true
 local ENHANCED_PROTOCOL_VERSION = 2
 
--- Profession ID mapping (using spell IDs for consistency)
 local PROFESSION_IDS = {}
 local PROFESSION_NAMES = {}
 
--- Enhanced Network Optimization Functions
 local function CreateOptimizedProfessionData(professionId, skillLevel, knownRecipes)
     if not OPTIMIZE_NETWORK_DATA or not CraftersBoard.CreateOptimizedRecipeData then
-        -- Fallback to original data structure
         return {
             professionId = professionId,
             skillLevel = skillLevel,
@@ -462,13 +452,6 @@ professionSnapshots[professionName] = {
 }
 --]]
 
--- Debug function (use global CB.Debug instead of local function)
--- Note: CB.Debug is defined in Init.lua and handles CRAFTERSBOARD_DB.debug check
--- local function CB.Debug(msg)
---     if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
---         print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r " .. tostring(msg))
---     end
--- end
 
 -- Compatibility function for sending addon messages (Classic Era compatible)
 local function SendAddonMessageCompat(prefix, message, distribution, target)

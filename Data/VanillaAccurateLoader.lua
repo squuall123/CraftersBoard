@@ -1,25 +1,17 @@
 -- VanillaAccurateLoader.lua
 -- Complete Recipe_Master integration for CraftersBoard
--- Provides 100% accurate Classic Era recipe data with 1553 recipes
 
 local _, addon = ...
 
--- Initialize data structure for Recipe_Master format
 if not addon.VanillaAccurateData then
     addon.VanillaAccurateData = {}
 end
 
--- Also ensure global CraftersBoard table exists and copy data there
 if not CraftersBoard then
     CraftersBoard = {}
 end
 
--- Get all recipe data from profession files
 function addon:LoadVanillaAccurateData()
-    -- Recipe data is automatically loaded from Data/Recipes/*.lua files
-    -- Each profession file populates addon.VanillaAccurateData[professionId]
-    -- This function serves as a validation point
-    
     local totalRecipes = 0
     for professionId, recipes in pairs(self.VanillaAccurateData) do
         local count = 0
@@ -27,24 +19,20 @@ function addon:LoadVanillaAccurateData()
             count = count + 1
         end
         totalRecipes = totalRecipes + count
-        -- Debug print only if enabled
         if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
             print("CraftersBoard: Loaded " .. count .. " recipes for profession " .. professionId)
         end
     end
     
-    -- Debug print only if enabled
     if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
         print("CraftersBoard: Total recipes loaded: " .. totalRecipes)
     end
     
-    -- Copy data to global CraftersBoard namespace for lookup functions
     CraftersBoard.VanillaAccurateData = self.VanillaAccurateData
     
     return totalRecipes > 0
 end
 
--- Get recipe by item ID and profession
 function addon:GetRecipe(professionId, itemId)
     if self.VanillaAccurateData[professionId] then
         return self.VanillaAccurateData[professionId][itemId]
@@ -52,7 +40,6 @@ function addon:GetRecipe(professionId, itemId)
     return nil
 end
 
--- Get all recipes for a profession
 function addon:GetRecipesForProfession(professionId)
     return self.VanillaAccurateData[professionId] or {}
 end

@@ -1,5 +1,4 @@
 -- CraftersBoard - Event Handling
--- Version: 1.0.0
 
 local ADDON_NAME = ...
 local CB = CraftersBoard
@@ -9,14 +8,11 @@ if not CB then
     return
 end
 
--- Create event handler frame
 local eventFrame = CreateFrame("Frame")
 CB.eventFrame = eventFrame
 
--- UI reference
 local UI = CB.UI
 
--- Register all events
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
@@ -26,7 +22,6 @@ eventFrame:RegisterEvent("CHAT_MSG_SAY")
 eventFrame:RegisterEvent("CHAT_MSG_GUILD")
 eventFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
 
--- Helper function to check if channel is allowed
 local function isChannelAllowed(event, ...)
   if event ~= "CHAT_MSG_CHANNEL" then return true end
   

@@ -1,6 +1,5 @@
 ﻿-- FirstAid.lua
--- Complete FirstAid recipe database extracted from Recipe_Master
--- Optimized for CraftersBoard crafting service platform
+-- Complete FirstAid recipe database
 
 local _, addon = ...
 

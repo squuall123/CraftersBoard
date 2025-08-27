@@ -1,9 +1,7 @@
 -- CraftersBoard - Chat Parser
--- Handles message classification and filtering
 
 local CB = CraftersBoard
 
--- Noise filter terms
 CB.RAID_DUNGEON_TERMS = {
   -- Raids
   "mc","molten core","molten","bwl","blackwing","blackwing lair","aq","aq20","aq40","temple of ahn'qiraj","ruins of ahn'qiraj",

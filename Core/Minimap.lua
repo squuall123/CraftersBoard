@@ -1,5 +1,4 @@
 -- CraftersBoard - Minimap Button
--- Version: 1.0.0
 
 local ADDON_NAME = ...
 local CB = CraftersBoard
@@ -9,17 +8,13 @@ if not CB then
     return
 end
 
--- Minimap module
 CB.MMB = CB.MMB or { offset = -4 }
 local MMB = CB.MMB
 
--- UI reference
 local UI = CB.UI
 
--- Math shortcuts
 local cos, sin, rad, deg = math.cos, math.sin, math.rad, math.deg
 
--- Minimap button position update
 local function MMB_UpdatePosition()
   if not MMB.button then return end
   local angle = CRAFTERSBOARD_DB.minimap.angle or 200
@@ -28,7 +23,6 @@ local function MMB_UpdatePosition()
   MMB.button:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
 
--- Minimap button drag handler
 local function MMB_OnDrag(self)
   local mx, my = Minimap:GetCenter()
   local cx, cy = GetCursorPosition()
@@ -40,11 +34,9 @@ local function MMB_OnDrag(self)
   MMB_UpdatePosition()
 end
 
--- Create minimap button
 local function createMinimapButton()
   if MMB.button then return end
   
-  -- Ensure minimap config exists
   CRAFTERSBOARD_DB.minimap = CRAFTERSBOARD_DB.minimap or { show = true, angle = 200 }
   
   local b = CreateFrame("Button", "CraftersBoard_MinimapButton", Minimap)

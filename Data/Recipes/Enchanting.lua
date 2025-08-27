@@ -1,6 +1,5 @@
 ﻿-- Enchanting.lua
--- Complete Enchanting recipe database extracted from Recipe_Master
--- Optimized for CraftersBoard crafting service platform
+-- Complete Enchanting recipe database
 
 local _, addon = ...
 

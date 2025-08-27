@@ -1,6 +1,4 @@
 -- CraftersBoard - UI Renderer
--- Version: 1.0.0
--- Handles complex UI rendering, layouts, and display logic
 
 local ADDON_NAME = ...
 local CB = CraftersBoard
@@ -13,7 +11,6 @@ end
 local UI = CB.UI
 local max, floor = math.max, math.floor
 
--- Class color wrapping for names
 function CB.classColorWrap(name, classFile)
   if not classFile or classFile == "" then return name end
   local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
@@ -23,10 +20,8 @@ function CB.classColorWrap(name, classFile)
   return name
 end
 
--- Helper function to clean player names (remove realm suffix)
 function CB.cleanPlayerName(name)
   if not name or name == "" then return name end
-  -- Remove realm suffix (everything after the first hyphen)
   return name:match("^([^-]+)") or name
 end
 

@@ -1,6 +1,5 @@
 ﻿-- Alchemy.lua
--- Complete Alchemy recipe database extracted from Recipe_Master
--- Optimized for CraftersBoard crafting service platform
+-- Complete Alchemy recipe database
 
 local _, addon = ...
 

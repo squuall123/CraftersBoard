@@ -1,16 +1,13 @@
 -- CraftersBoard - Mute System
--- Handles player and phrase muting
 
 local CB = CraftersBoard
 
--- Name normalization
 function CB.NormalizeName(name)
   name = name or ""
   name = name:gsub("%-.*$", "")
   return name:lower()
 end
 
--- Player muting
 function CB.IsPlayerMuted(name)
   local n = CB.NormalizeName(name)
   return CRAFTERSBOARD_DB.muted

@@ -1,6 +1,4 @@
 -- CraftersBoard - Data Dictionary
--- Compression system using external spell ID mappings
--- Version: 1.0.0
 
 local CB = CraftersBoard
 
@@ -9,11 +7,9 @@ if not CB then
     return
 end
 
--- Create DataDictionary namespace
 CB.DataDictionary = CB.DataDictionary or {}
 local DD = CB.DataDictionary
 
--- Load external data with profession organization support
 local VanillaData = CraftersBoard_VanillaData
 if not VanillaData then
     CB.Debug("Warning: Vanilla data not loaded! Dictionary compression will be limited.")
@@ -26,7 +22,6 @@ if not VanillaData then
     }
 end
 
--- Use external data mappings
 DD.SPELL_TO_RECIPE = VanillaData.SPELL_TO_RECIPE or {}
 DD.RECIPES_BY_PROFESSION = VanillaData.RECIPES_BY_PROFESSION or {}
 DD.PROFESSION_IDS = VanillaData.PROFESSION_IDS or {}
