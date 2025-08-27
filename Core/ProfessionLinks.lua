@@ -4686,49 +4686,50 @@ function PL.GenerateAndShowProfessionLink(frame)
         theme = { primary = {0.1, 0.1, 0.1}, accent = {0.5, 0.5, 1}, text = {1, 1, 1} }
     end
     
+    -- TODO Fix this!
     -- Create a container frame for the EditBox with backdrop support
-    local container = CreateFrame("Frame", nil, frame)
-    container:SetSize(410, 40)
-    container:SetPoint("CENTER", frame, "CENTER", 0, 100)
+    -- local container = CreateFrame("Frame", nil, frame)
+    -- container:SetSize(410, 40)
+    -- container:SetPoint("CENTER", frame, "CENTER", 0, 100)
     
     -- Apply backdrop styling to the container
-    if CB.UI and CB.UI.SetBackdropCompat then
-        CB.UI.SetBackdropCompat(container, {
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\Common\\Common-Input-Border",
-            tile = true, tileSize = 8, edgeSize = 8,
-            insets = { left = 3, right = 3, top = 3, bottom = 3 }
-        })
-        CB.UI.SetBackdropColorCompat(container, theme.primary[1], theme.primary[2], theme.primary[3], 1.0)
-        CB.UI.SetBackdropBorderColorCompat(container, theme.accent[1], theme.accent[2], theme.accent[3], 1.0)
-    else
-        CB.Debug("GenerateAndShowProfessionLink: CB.UI backdrop functions not available")
-    end
+    -- if CB.UI and CB.UI.SetBackdropCompat then
+    --     CB.UI.SetBackdropCompat(container, {
+    --         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    --         edgeFile = "Interface\\Common\\Common-Input-Border",
+    --         tile = true, tileSize = 8, edgeSize = 8,
+    --         insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    --     })
+    --     CB.UI.SetBackdropColorCompat(container, theme.primary[1], theme.primary[2], theme.primary[3], 1.0)
+    --     CB.UI.SetBackdropBorderColorCompat(container, theme.accent[1], theme.accent[2], theme.accent[3], 1.0)
+    -- else
+    --     CB.Debug("GenerateAndShowProfessionLink: CB.UI backdrop functions not available")
+    -- end
     
-    -- Create the EditBox inside the container
-    local editBox = CreateFrame("EditBox", nil, container)
-    editBox:SetSize(394, 24)
-    editBox:SetPoint("CENTER", container, "CENTER", 0, 0)
-    editBox:SetAutoFocus(true)
-    editBox:SetText(hyperlink)
-    editBox:HighlightText()
-    editBox:SetFontObject("GameFontNormal")
-    editBox:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+    -- -- Create the EditBox inside the container
+    -- local editBox = CreateFrame("EditBox", nil, container)
+    -- editBox:SetSize(394, 24)
+    -- editBox:SetPoint("CENTER", container, "CENTER", 0, 0)
+    -- editBox:SetAutoFocus(true)
+    -- editBox:SetText(hyperlink)
+    -- editBox:HighlightText()
+    -- editBox:SetFontObject("GameFontNormal")
+    -- editBox:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
     
-    local linkLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    linkLabel:SetPoint("BOTTOM", container, "TOP", 0, 5)
-    linkLabel:SetText("Profession Link (Ctrl+C to copy, Shift+Click to insert in chat):")
-    linkLabel:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+    -- local linkLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    -- linkLabel:SetPoint("BOTTOM", container, "TOP", 0, 5)
+    -- linkLabel:SetText("Profession Link (Ctrl+C to copy, Shift+Click to insert in chat):")
+    -- linkLabel:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
     
-    editBox:SetScript("OnEscapePressed", function(self)
-        container:Hide()
-        linkLabel:Hide()
-    end)
+    -- editBox:SetScript("OnEscapePressed", function(self)
+    --     container:Hide()
+    --     linkLabel:Hide()
+    -- end)
     
-    editBox:SetScript("OnEnterPressed", function(self)
-        container:Hide()
-        linkLabel:Hide()
-    end)
+    -- editBox:SetScript("OnEnterPressed", function(self)
+    --     container:Hide()
+    --     linkLabel:Hide()
+    -- end)
     
     CB.Debug("GenerateAndShowProfessionLink: Link dialog created successfully")
 end
@@ -4821,6 +4822,8 @@ local function GetUserFriendlyProfessionName(internalName)
         return "Enchanting"
     elseif lowerName:find("tailoring") then
         return "Tailoring"
+    elseif lowerName:find("mining") then
+        return "Mining"
     end
     
     -- If nothing matches, return the original name (capitalized)
