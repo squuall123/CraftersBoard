@@ -1,0 +1,31 @@
+name: Build & publish to CurseForge
+
+on:
+  push:
+    branches: [ main ]             # untagged commits → alpha builds
+    tags:
+      - 'v*'                       # tags (v1.2.3, v1.2.3-beta.1, etc.)
+      - '[0-9]+.[0-9]+.[0-9]+'     # or plain semver tags like 1.2.3
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write              # lets the action create GitHub Releases if you want
+    steps:
+      - name: Checkout (with tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0           # IMPORTANT: needed for changelog + tag detection
+
+      - name: Package & Upload
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          # Optional extras if you also want to push elsewhere:
+          # WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          # WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}  # attaches zips to a GitHub Release
+        # with:
+        #   args: -p 123456         # only if you didn't add X-Curse-Project-ID in the TOC

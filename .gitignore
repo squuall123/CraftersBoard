@@ -1,0 +1,116 @@
+# ===========================================
+# CraftersBoard WoW Addon - .gitignore
+# ===========================================
+
+# ===== DEVELOPMENT FILES =====
+# Backup and temporary files
+*.bak
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== WOW ADDON SPECIFIC =====
+# Backup directories (your Data/Backup_Old_Files is intentionally tracked)
+# But exclude other common backup patterns
+**/Backup/
+**/backup/
+**/old/
+**/Old/
+**/archive/
+**/Archive/
+
+# Local testing files
+test/
+tests/
+debug/
+*.debug.lua
+
+# ===== PACKAGE/BUILD FILES =====
+# GitHub Actions artifacts
+package/
+*.zip
+*.7z
+*.tar.gz
+
+# CurseForge packaging
+.release/
+.package/
+dist/
+
+# ===== VERSION CONTROL =====
+# Git files that shouldn't be committed
+.git/
+.gitattributes
+
+# ===== DOCUMENTATION =====
+# Generated documentation (keep source .md files)
+docs/generated/
+*.pdf
+
+# ===== LOGS AND CACHE =====
+# Various log files
+*.log
+logs/
+
+# Cache directories
+.cache/
+cache/
+
+# ===== DEVELOPMENT TOOLS =====
+# Lua development
+luac.out
+*.luac
+
+# Node.js (if used for tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if used for tooling)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# ===== SPECIFIC EXCEPTIONS =====
+# Keep certain files that might normally be ignored
+!.github/
+!README.md
+!LICENSE
+!CHANGELOG.md
+
+# ===== ADDON TESTING =====
+# Local WoW client files (if testing in actual WoW directory)
+*.toc.bak
+SavedVariables/
+WTF/
+Interface/AddOns/*/
+!Interface/AddOns/CraftersBoard/
+
+# ===== MISC =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
