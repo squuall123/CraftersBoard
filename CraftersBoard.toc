@@ -19,6 +19,7 @@ Data\Recipes\Enchanting.lua
 Data\Recipes\Engineering.lua
 Data\Recipes\FirstAid.lua
 Data\Recipes\Leatherworking.lua
+Data\Recipes\Mining.lua
 Data\Recipes\Tailoring.lua
 Data\VanillaAccurateLoader.lua
 
