@@ -1,5 +1,4 @@
 -- CraftersBoard - UI Components
--- Version: 1.0.0
 
 local ADDON_NAME = ...
 local CB = CraftersBoard
@@ -9,17 +8,23 @@ if not CB then
     return
 end
 
--- UI namespace
 CB.UI = CB.UI or {}
 local UI = CB.UI
 
--- Forward declarations
 local createUI, SetupResizeHandles, SaveWindowGeometry, RestoreWindowGeometry
 
--- Utility tables
 local tinsert = table.insert
 
--- Classic compatibility functions for backdrop
+function CB.getProfessionIcon(profession, size)
+  if not profession then return "" end
+  local iconPath = GetProfessionIconPath and GetProfessionIconPath(profession) or 
+                   ("Interface\\Icons\\Trade_" .. profession:gsub(" ", ""))
+  if iconPath then
+    return "|T" .. iconPath .. ":" .. size .. ":" .. size .. ":0:0|t"
+  end
+  return ""
+end
+
 local function SetBackdropCompat(frame, backdrop)
   if frame.SetBackdrop then
     frame:SetBackdrop(backdrop)
@@ -72,16 +77,6 @@ local PROFESSION_ICONS = {
   ["FirstAid"] = "Interface\\Icons\\Spell_Holy_Heal",
   ["Other"] = "Interface\\Icons\\INV_Misc_QuestionMark"
 }
-
--- Function to get profession icon texture string
-function CB.getProfessionIcon(profession, size)
-  size = size or 16
-  local iconPath = PROFESSION_ICONS[profession]
-  if iconPath then
-    return "|T" .. iconPath .. ":" .. size .. ":" .. size .. ":0:0|t"
-  end
-  return ""
-end
 
 function CB.moneyTextureString(c)
   if not c or c <= 0 then return "—" end
@@ -555,16 +550,16 @@ function createUI()
     
     if success and result and scroll then
       useMinimalScrollBar = true
-      CB.DebugPrint("Successfully initialized MinimalScrollBar for modern scroll appearance")
+      CB.Debug("Successfully initialized MinimalScrollBar for modern scroll appearance")
     else
-      CB.DebugPrint("MinimalScrollBar failed (callback registry issue), falling back to styled UIPanelScrollFrameTemplate")
+      CB.Debug("MinimalScrollBar failed (callback registry issue), falling back to styled UIPanelScrollFrameTemplate")
       if scroll then
         scroll:Hide()
         scroll = nil
       end
     end
   else
-    CB.DebugPrint("MinimalScrollBar template not available, using styled UIPanelScrollFrameTemplate")
+    CB.Debug("MinimalScrollBar template not available, using styled UIPanelScrollFrameTemplate")
   end
   
   -- Fallback to standard scroll frame with custom minimal scroll bar styling
@@ -574,7 +569,7 @@ function createUI()
     -- Create a custom minimal scroll bar that looks like Anniversary Edition
     local scrollBar = scroll.ScrollBar or _G[scroll:GetName().."ScrollBar"]
     if scrollBar then
-      CB.DebugPrint("Creating custom minimal scroll bar design")
+      CB.Debug("Creating custom minimal scroll bar design")
       
       -- Hide the standard scroll bar completely
       scrollBar:Hide()
@@ -697,9 +692,9 @@ function createUI()
       scroll.customScrollBar = customScrollBar
       scroll.updateThumb = updateThumb
       
-      CB.DebugPrint("Custom minimal scroll bar created successfully")
+      CB.Debug("Custom minimal scroll bar created successfully")
     else
-      CB.DebugPrint("Warning: Could not find scroll bar to replace")
+      CB.Debug("Warning: Could not find scroll bar to replace")
     end
   end
   
@@ -740,7 +735,7 @@ function createUI()
     if CB.rebuildGuildWorkers then 
       CB.rebuildGuildWorkers() 
       local members = CRAFTERSBOARD_DB.guildScan.members or {}
-      CB.DebugPrint("Guild scan complete. Found " .. #members .. " members with professions.")
+      CB.Debug("Guild scan complete. Found " .. #members .. " members with professions.")
     end
     if UI.Force then UI.Force() end
   end)
@@ -926,15 +921,15 @@ function createUI()
   
   UI.setActiveTab = setActiveTab
   UI.tab1:SetScript("OnClick", function() 
-    CB.DebugPrint("Tab 1 clicked - Workers")
+    CB.Debug("Tab 1 clicked - Workers")
     setActiveTab(1) 
   end)
   UI.tab2:SetScript("OnClick", function() 
-    CB.DebugPrint("Tab 2 clicked - Looking For")
+    CB.Debug("Tab 2 clicked - Looking For")
     setActiveTab(2) 
   end)
   UI.tab3:SetScript("OnClick", function() 
-    CB.DebugPrint("Tab 3 clicked - Guild Workers")
+    CB.Debug("Tab 3 clicked - Guild Workers")
     setActiveTab(3) 
   end)
 

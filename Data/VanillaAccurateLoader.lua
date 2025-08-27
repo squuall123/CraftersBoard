@@ -1,5 +1,4 @@
 -- VanillaAccurateLoader.lua
--- Complete Recipe_Master integration for CraftersBoard
 
 local _, addon = ...
 

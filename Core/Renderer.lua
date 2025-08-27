@@ -25,13 +25,6 @@ function CB.cleanPlayerName(name)
   return name:match("^([^-]+)") or name
 end
 
--- Helper function for debug printing
-function CB.debugPrint(...)
-  if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
-    print("|cff00ff88CraftersBoard|r", ...)
-  end
-end
-
 -- Helper function to get color for profession skill level
 function CB.getProfessionLevelColor(level)
   if not level or level <= 0 then
@@ -311,7 +304,7 @@ function UI.AcquireRow(parent)
         b.starTextureMode = "custom"
         b.filledTexturePath = "Interface\\AddOns\\CraftersBoard\\Textures\\star_filled"
         b.emptyTexturePath = "Interface\\AddOns\\CraftersBoard\\Textures\\star_empty"
-        CB.debugPrint("Using custom TGA star textures")
+        CB.Debug("Using custom TGA star textures")
       else
         -- Second try: Better built-in WoW textures for stars
         -- Try a few different built-in textures that should work in Classic
@@ -335,7 +328,7 @@ function UI.AcquireRow(parent)
             end
             b.filledTexturePath = texPath
             b.emptyTexturePath = texPath
-            CB.debugPrint("Using built-in texture: " .. texPath)
+            CB.Debug("Using built-in texture: " .. texPath)
             break
           end
         end
@@ -347,7 +340,7 @@ function UI.AcquireRow(parent)
           b.starText:SetPoint("CENTER")
           b.starText:SetText("★")
           b.starTextureMode = "text"
-          CB.debugPrint("Using text symbols for stars")
+          CB.Debug("Using text symbols for stars")
         end
       end
     end
@@ -726,10 +719,10 @@ function CB.togglePlayerFavorite(playerName)
   -- Toggle favorite status
   if CRAFTERSBOARD_DB.favorites[cleanName] then
     CRAFTERSBOARD_DB.favorites[cleanName] = nil
-    CB.debugPrint("Removed " .. cleanName .. " from favorites")
+    CB.Debug("Removed " .. cleanName .. " from favorites")
   else
     CRAFTERSBOARD_DB.favorites[cleanName] = true
-    CB.debugPrint("Added " .. cleanName .. " to favorites")
+    CB.Debug("Added " .. cleanName .. " to favorites")
   end
   
   -- Refresh UI if visible

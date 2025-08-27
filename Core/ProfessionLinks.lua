@@ -1,5 +1,4 @@
 -- CraftersBoard - Profession Links Module
--- Version: 1.0.0
 -- Enables custom profession linking for Classic WoW Anniversary
 
 -- Debug print only if enabled

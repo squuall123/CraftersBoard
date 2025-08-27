@@ -329,7 +329,3 @@ function CB.IsChannelAllowed(event, ...)
   end
   return false
 end
-
--- Export functions to CB namespace
--- (Note: CB.ContainsAny etc. are already defined above as CB functions)
--- Just need to export the local functions that aren't already in CB namespace

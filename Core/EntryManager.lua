@@ -1,5 +1,4 @@
 -- CraftersBoard - Entry Management
--- Version: 1.0.0
 -- Handles adding, updating, and managing crafting entries
 
 local ADDON_NAME = ...

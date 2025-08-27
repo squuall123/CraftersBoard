@@ -1,5 +1,4 @@
 -- CraftersBoard - Settings Panel
--- Version: 1.0.0
 
 local ADDON_NAME = ...
 local CB = CraftersBoard

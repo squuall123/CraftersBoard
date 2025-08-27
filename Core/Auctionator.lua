@@ -1,4 +1,4 @@
--- CraftersBoard - Auctionator Integration
+-- CraftersBoard Auctionator Integration
 -- Version: 1.0.0
 -- Handles price tooltips and Auctionator integration
 
@@ -8,28 +8,6 @@ local CB = CraftersBoard
 if not CB then
     error("CraftersBoard namespace not found! Make sure Init.lua loads first.")
     return
-end
-
--- Coin texture constants
-local GOLD_TEX   = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t"
-local SILVER_TEX = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t"
-local COPPER_TEX = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t"
-
--- Money formatting function
-function CB.moneyTextureString(c)
-  if not c or c <= 0 then return "—" end
-  if GetCoinTextureString then return GetCoinTextureString(c) end
-  
-  local g = math.floor(c/10000)
-  local s = math.floor((c%10000)/100)
-  local cp = c % 100
-  local parts = {}
-  
-  if g > 0 then table.insert(parts, g..GOLD_TEX) end
-  if s > 0 or g > 0 then table.insert(parts, s..SILVER_TEX) end
-  table.insert(parts, cp..COPPER_TEX)
-  
-  return table.concat(parts, " ")
 end
 
 -- Auctionator availability check

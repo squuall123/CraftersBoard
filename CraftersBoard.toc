@@ -11,7 +11,7 @@
 Core\Init.lua
 Core\Database.lua
 
-# Recipe databases (Recipe_Master complete dataset)
+# Recipe databases (Recipes complete dataset)
 Data\Recipes\Alchemy.lua
 Data\Recipes\Blacksmithing.lua  
 Data\Recipes\Cooking.lua
