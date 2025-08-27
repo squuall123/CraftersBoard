@@ -1,9 +1,11 @@
 ## Interface: 11507
 ## Title: CraftersBoard
-## Notes: Lists crafting service offers/requests by parsing chat (like LFG Bulletin Board, but for professions)
+## Notes: Lists crafting service offers/requests by parsing chat + share profession link to chat
 ## Author: Squall#69
 ## Version: 1.0.0
 ## SavedVariables: CRAFTERSBOARD_DB
+
+## X-Curse-Project-ID: 1330109
 
 # Core initialization and utilities
 Core\Init.lua

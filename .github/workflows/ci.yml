@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ develop ]
+
+env:
+  ADDON_NAME: CraftersBoard
+
+jobs:
+  quick-check:
+    name: Quick Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.1"
+
+      - name: Quick syntax check
+        run: |
+          echo "Running quick syntax validation..."
+          
+          # Check TOC file exists and is valid
+          if [ ! -f "CraftersBoard.toc" ]; then
+            echo "ERROR: CraftersBoard.toc not found"
+            exit 1
+          fi
+          
+          # Check Lua syntax on core files
+          core_files=(
+            "CraftersBoard.lua"
+            "Core/Init.lua"
+            "Core/Database.lua"
+            "Core/ProfessionLinks.lua"
+          )
+          
+          for file in "${core_files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "Checking syntax: $file"
+              lua -e "local f = io.open('$file', 'r'); local content = f:read('*all'); f:close(); assert(load(content, '$file'))" || exit 1
+            else
+              echo "WARNING: Core file $file not found"
+            fi
+          done
+          
+          echo "Quick validation passed!"
+
+      - name: Check for debug binding
+        run: |
+          echo "Checking for proper debug binding..."
+          
+          # Look for unbound print statements (exclude comments and specific patterns)
+          UNBOUND_PRINTS=$(grep -r "print(" --include="*.lua" . | \
+            grep -v "-- " | \
+            grep -v "CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug" | \
+            grep -v "CB.Debug" | \
+            grep -v "CB.Print" | \
+            grep -v "simplePrint" | \
+            grep -v "ERROR:" | \
+            wc -l)
+          
+          if [ $UNBOUND_PRINTS -gt 5 ]; then
+            echo "WARNING: Found $UNBOUND_PRINTS potentially unbound print statements"
+            echo "Consider binding debug output to CRAFTERSBOARD_DB.debug parameter"
+            
+            # Show examples
+            echo "Examples:"
+            grep -r "print(" --include="*.lua" . | \
+              grep -v "-- " | \
+              grep -v "CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug" | \
+              grep -v "CB.Debug" | \
+              grep -v "CB.Print" | \
+              grep -v "simplePrint" | \
+              grep -v "ERROR:" | \
+              head -5
+          else
+            echo "✓ Debug binding looks good ($UNBOUND_PRINTS unbound prints found)"
+          fi
+
+  dependency-check:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Analyze dependencies
+        run: |
+          echo "Analyzing addon dependencies..."
+          
+          # Check for external dependencies
+          echo "Checking for external addon dependencies..."
+          if grep -r "IsAddOnLoaded\|LoadAddOn" --include="*.lua" .; then
+            echo "Found potential addon dependencies"
+          else
+            echo "✓ No external addon dependencies found"
+          fi
+          
+          # Check WoW API usage
+          echo "Checking WoW API usage..."
+          API_CALLS=$(grep -r "C_\|Get\|Set\|Send" --include="*.lua" . | wc -l)
+          echo "Found $API_CALLS WoW API calls"
+          
+          # Check for Classic Era compatibility
+          echo "Checking Classic Era compatibility..."
+          MODERN_APIS=$(grep -r "C_AuctionHouse\|C_TradeSkillUI\|C_Professions" --include="*.lua" . | wc -l)
+          if [ $MODERN_APIS -gt 0 ]; then
+            echo "WARNING: Found $MODERN_APIS potential modern API calls"
+            echo "Verify Classic Era compatibility"
+          else
+            echo "✓ No modern API calls detected"
+          fi
+
+  file-structure:
+    name: File Structure Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate file structure
+        run: |
+          echo "Validating addon file structure..."
+          
+          # Check TOC file loading order
+          echo "Validating TOC file order..."
+          if grep -q "Core/Init.lua" CraftersBoard.toc; then
+            INIT_LINE=$(grep -n "Core/Init.lua" CraftersBoard.toc | cut -d: -f1)
+            echo "Init.lua loads at line $INIT_LINE"
+          else
+            echo "ERROR: Core/Init.lua not found in TOC"
+            exit 1
+          fi
+          
+          # Check for required directories
+          echo "Checking directory structure..."
+          required_dirs=("Core" "Data")
+          for dir in "${required_dirs[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "✓ Found directory: $dir"
+            else
+              echo "WARNING: Directory $dir not found"
+            fi
+          done
+          
+          # Count files by type
+          LUA_FILES=$(find . -name "*.lua" -not -path "./.git/*" | wc -l)
+          TOC_FILES=$(find . -name "*.toc" -not -path "./.git/*" | wc -l)
+          
+          echo "File summary:"
+          echo "  Lua files: $LUA_FILES"
+          echo "  TOC files: $TOC_FILES"
+          
+          echo "File structure validation complete!"
