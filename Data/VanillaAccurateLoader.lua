@@ -27,10 +27,16 @@ function addon:LoadVanillaAccurateData()
             count = count + 1
         end
         totalRecipes = totalRecipes + count
-        print("CraftersBoard: Loaded " .. count .. " recipes for profession " .. professionId)
+        -- Debug print only if enabled
+        if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+            print("CraftersBoard: Loaded " .. count .. " recipes for profession " .. professionId)
+        end
     end
     
-    print("CraftersBoard: Total recipes loaded: " .. totalRecipes)
+    -- Debug print only if enabled
+    if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+        print("CraftersBoard: Total recipes loaded: " .. totalRecipes)
+    end
     
     -- Copy data to global CraftersBoard namespace for lookup functions
     CraftersBoard.VanillaAccurateData = self.VanillaAccurateData
@@ -113,7 +119,10 @@ function addon:CreateLegacyCompatibility()
     
     -- If we have items to retry, set up a delayed loader
     if #itemsToRetry > 0 then
-        print("CraftersBoard: " .. #itemsToRetry .. " items need delayed loading, setting up retry system...")
+        -- Debug print only if enabled
+        if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+            print("CraftersBoard: " .. #itemsToRetry .. " items need delayed loading, setting up retry system...")
+        end
         
         local retryAttempts = 0
         local maxRetries = 10
@@ -136,7 +145,10 @@ function addon:CreateLegacyCompatibility()
                 end
             end
             
-            print("CraftersBoard: Retry attempt " .. retryAttempts .. " - resolved " .. resolved .. " items, " .. #stillMissing .. " still missing")
+            -- Debug print only if enabled
+            if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+                print("CraftersBoard: Retry attempt " .. retryAttempts .. " - resolved " .. resolved .. " items, " .. #stillMissing .. " still missing")
+            end
             
             if #stillMissing > 0 and retryAttempts < maxRetries then
                 -- Schedule another retry
@@ -147,10 +159,16 @@ function addon:CreateLegacyCompatibility()
                 for _, item in ipairs(stillMissing) do
                     local fallbackName = "CraftedItem_" .. item.itemId
                     legacyCompat.SPELL_TO_RECIPE[item.spellId] = fallbackName
-                    print("CraftersBoard: Using fallback name '" .. fallbackName .. "' for item " .. item.itemId)
+                    -- Debug print only if enabled
+                    if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+                        print("CraftersBoard: Using fallback name '" .. fallbackName .. "' for item " .. item.itemId)
+                    end
                 end
                 
-                print("CraftersBoard: Item name loading complete - " .. (retryAttempts >= maxRetries and "max retries reached" or "all items resolved"))
+                -- Debug print only if enabled
+                if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+                    print("CraftersBoard: Item name loading complete - " .. (retryAttempts >= maxRetries and "max retries reached" or "all items resolved"))
+                end
                 
                 -- Notify any open profession viewers to refresh their display
                 if CraftersBoard and CraftersBoard.ProfessionLinks and CraftersBoard.ProfessionLinks.RefreshProfessionViewer then
@@ -174,7 +192,10 @@ function addon:CreateLegacyCompatibility()
         spellCount = spellCount + 1
     end
     
-    print("CraftersBoard: Legacy compatibility created with " .. spellCount .. " spell mappings")
+    -- Debug print only if enabled
+    if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+        print("CraftersBoard: Legacy compatibility created with " .. spellCount .. " spell mappings")
+    end
 end
 
 -- Initialize the data when the addon loads
