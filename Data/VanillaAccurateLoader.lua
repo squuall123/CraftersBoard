@@ -92,6 +92,9 @@ function addon:CreateLegacyCompatibility()
     
     -- Build spell to recipe mapping dynamically from recipe data files
     -- This uses the item IDs from our recipe data and gets real names via WoW API
+    -- Important: GetItemInfo() might return nil if item not in cache yet
+    local itemsToRetry = {}
+    
     for professionId, professionData in pairs(self.VanillaAccurateData) do
         for itemId, recipe in pairs(professionData) do
             if recipe.spellId then
@@ -101,11 +104,63 @@ function addon:CreateLegacyCompatibility()
                     -- This gives us real recipe names like "Minor Healing Potion" instead of "CraftedItem_118"
                     legacyCompat.SPELL_TO_RECIPE[recipe.spellId] = itemName
                 else
-                    -- Fallback to synthetic name if API not available (items not in cache yet)
-                    legacyCompat.SPELL_TO_RECIPE[recipe.spellId] = "CraftedItem_" .. itemId
+                    -- Schedule for retry instead of using fallback name immediately
+                    table.insert(itemsToRetry, {itemId = itemId, spellId = recipe.spellId})
                 end
             end
         end
+    end
+    
+    -- If we have items to retry, set up a delayed loader
+    if #itemsToRetry > 0 then
+        print("CraftersBoard: " .. #itemsToRetry .. " items need delayed loading, setting up retry system...")
+        
+        local retryAttempts = 0
+        local maxRetries = 10
+        local retryDelay = 2 -- seconds
+        
+        local function RetryItemLoading()
+            retryAttempts = retryAttempts + 1
+            local stillMissing = {}
+            local resolved = 0
+            
+            for _, item in ipairs(itemsToRetry) do
+                local itemName = GetItemInfo(item.itemId)
+                if itemName then
+                    -- Successfully got item name
+                    legacyCompat.SPELL_TO_RECIPE[item.spellId] = itemName
+                    resolved = resolved + 1
+                else
+                    -- Still missing, try again later
+                    table.insert(stillMissing, item)
+                end
+            end
+            
+            print("CraftersBoard: Retry attempt " .. retryAttempts .. " - resolved " .. resolved .. " items, " .. #stillMissing .. " still missing")
+            
+            if #stillMissing > 0 and retryAttempts < maxRetries then
+                -- Schedule another retry
+                itemsToRetry = stillMissing
+                C_Timer.After(retryDelay, RetryItemLoading)
+            else
+                -- Finished retrying - use fallback names for any remaining items
+                for _, item in ipairs(stillMissing) do
+                    local fallbackName = "CraftedItem_" .. item.itemId
+                    legacyCompat.SPELL_TO_RECIPE[item.spellId] = fallbackName
+                    print("CraftersBoard: Using fallback name '" .. fallbackName .. "' for item " .. item.itemId)
+                end
+                
+                print("CraftersBoard: Item name loading complete - " .. (retryAttempts >= maxRetries and "max retries reached" or "all items resolved"))
+                
+                -- Notify any open profession viewers to refresh their display
+                if CraftersBoard and CraftersBoard.ProfessionLinks and CraftersBoard.ProfessionLinks.RefreshProfessionViewer then
+                    CraftersBoard.ProfessionLinks.RefreshProfessionViewer()
+                end
+            end
+        end
+        
+        -- Start the retry process
+        C_Timer.After(retryDelay, RetryItemLoading)
     end
     
     -- Set global for legacy compatibility

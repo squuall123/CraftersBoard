@@ -198,13 +198,24 @@ function PL.GetSpellIdFromRecipeMasterData(recipeName)
     local cbAddon = CraftersBoard
     if cbAddon and cbAddon.VanillaAccurateData then
         for professionId, professionData in pairs(cbAddon.VanillaAccurateData) do
-            for itemId, recipe in pairs(professionData) do
-                if recipe.spellId then
+            for keyId, recipe in pairs(professionData) do
+                -- Method 1: Check if recipe has spellId and itemId, match by item name
+                if recipe.spellId and recipe.itemId then
                     -- Get the actual item name from WoW API
-                    local itemName = GetItemInfo(itemId)
+                    local itemName = GetItemInfo(recipe.itemId)
                     if itemName and itemName == recipeName then
-                        print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r GetSpellIdFromRecipeMasterData: Found match - " .. recipeName .. " → spellId " .. recipe.spellId .. " (itemId " .. itemId .. ")")
+                        print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r GetSpellIdFromRecipeMasterData: Found item match - " .. recipeName .. " → spellId " .. recipe.spellId .. " (itemId " .. recipe.itemId .. ")")
                         return recipe.spellId
+                    end
+                end
+                
+                -- Method 2: For recipes without itemId (like enchantments), check if spell name matches
+                if not recipe.itemId and type(keyId) == "number" then
+                    -- The key might be a spell ID, check if spell name matches recipe name
+                    local spellName = GetSpellInfo and GetSpellInfo(keyId)
+                    if spellName and spellName == recipeName then
+                        print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r GetSpellIdFromRecipeMasterData: Found spell match - " .. recipeName .. " → spellId " .. keyId)
+                        return keyId
                     end
                 end
             end
@@ -228,8 +239,72 @@ function PL.GetSpellIdFromRecipeMasterData(recipeName)
     return nil
 end
 
+-- Look up spell ID by item ID directly (Recipe_Master preferred method)
+function PL.GetSpellIdFromItemId(itemId)
+    if not itemId then return nil end
+    
+    -- Use Recipe_Master database: direct item ID lookup
+    local cbAddon = CraftersBoard
+    if cbAddon and cbAddon.VanillaAccurateData then
+        for professionId, professionData in pairs(cbAddon.VanillaAccurateData) do
+            local recipe = professionData[itemId]
+            if recipe then
+                -- Check if recipe has a spellId field
+                if recipe.spellId then
+                    print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r GetSpellIdFromItemId: Direct match - itemId " .. itemId .. " → spellId " .. recipe.spellId .. " (profession " .. professionId .. ")")
+                    return recipe.spellId
+                -- For recipes without spellId (like enchantments), the key might be the spell ID
+                elseif not recipe.itemId and type(itemId) == "number" then
+                    print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r GetSpellIdFromItemId: Key-as-spellId match - using key " .. itemId .. " as spell ID (profession " .. professionId .. ")")
+                    return itemId
+                end
+            end
+        end
+    end
+    
+    -- Only print debug for missing items if debug is enabled
+    if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
+        print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r GetSpellIdFromItemId: No recipe found for itemId " .. itemId)
+    end
+    return nil
+end
+
+-- New function: Look up spell ID by spell ID key (for non-item recipes like enchantments)
+function PL.GetSpellIdBySpellKey(spellId)
+    if not spellId then return nil end
+    
+    -- Use Recipe_Master database: check if spell ID exists as a key
+    local cbAddon = CraftersBoard
+    if cbAddon and cbAddon.VanillaAccurateData then
+        for professionId, professionData in pairs(cbAddon.VanillaAccurateData) do
+            local recipe = professionData[spellId]
+            if recipe then
+                -- If this is a non-item recipe (no itemId), the key is likely the spell ID
+                if not recipe.itemId then
+                    print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r GetSpellIdBySpellKey: Found non-item recipe - spellId " .. spellId .. " (profession " .. professionId .. ")")
+                    return spellId
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
 -- Add the function to the PL namespace for use in ScanRecipe
 PL.GetSpellIdFromRecipeName = GetSpellIdFromRecipeName
+
+-- Refresh the profession viewer display (called when item names get loaded)
+function PL.RefreshProfessionViewer()
+    if professionViewerFrame and professionViewerFrame:IsShown() then
+        print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r Refreshing profession viewer display after item names loaded")
+        
+        -- If we have stored profession data, refresh the display
+        if professionViewerFrame.currentProfessionData then
+            professionViewerFrame:DisplayProfessionData(professionViewerFrame.currentProfessionData)
+        end
+    end
+end
 
 -- Optimized Data Serialization Functions
 
@@ -290,7 +365,12 @@ function PL.DeserializeOptimizedData(serializedData)
         timestamp = timestamp
     }
     
-    Debug("Deserialized optimized data: profession " .. professionId .. ", skill " .. currentSkill .. ", " .. #knownRecipes .. " recipes")
+    -- Debug function may not be available yet during early loading
+    if Debug then
+        Debug("Deserialized optimized data: profession " .. professionId .. ", skill " .. currentSkill .. ", " .. #knownRecipes .. " recipes")
+    else
+        print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r Deserialized optimized data: profession " .. professionId .. ", skill " .. currentSkill .. ", " .. #knownRecipes .. " recipes")
+    end
     return true, optimizedData
 end
 
@@ -2657,7 +2737,7 @@ function PL.ScanRecipe(index)
     -- Try multiple methods to get spell ID in Classic Era
     local spellId = nil
     
-    -- Method 1: Try GetTradeSkillRecipeLink
+    -- Method 1: Try GetTradeSkillRecipeLink (for direct spell ID extraction)
     local recipeLink = GetTradeSkillRecipeLink and GetTradeSkillRecipeLink(index)
     if recipeLink then
         -- Extract spell ID from recipe link format: |cffffd000|Henchant:spellId|h[Recipe Name]|h|r
@@ -2669,7 +2749,49 @@ function PL.ScanRecipe(index)
         end
     end
     
-    -- Method 2: Look up spell ID using Recipe_Master database
+    -- Method 2: Try item link approach (Recipe_Master method)
+    if not spellId and GetTradeSkillItemLink then
+        local itemLink = GetTradeSkillItemLink(index)
+        if itemLink then
+            -- Extract item ID from link format: |cffffffff|Hitem:itemId:...|h[Item Name]|h|r
+            local itemId = itemLink:match("|Hitem:(%d+):")
+            if itemId then
+                itemId = tonumber(itemId)
+                Debug("ScanRecipe: Found created item ID " .. itemId .. " for recipe '" .. name .. "'")
+                
+                -- Look up spell ID in Recipe_Master database by item ID
+                spellId = PL.GetSpellIdFromItemId(itemId)
+                if spellId then
+                    Debug("ScanRecipe: Found spell ID " .. spellId .. " via item ID lookup for '" .. name .. "'")
+                else
+                    Debug("ScanRecipe: No spell ID found for item ID " .. itemId .. " in Recipe_Master database")
+                end
+            else
+                Debug("ScanRecipe: Could not extract item ID from item link: " .. itemLink)
+            end
+        else
+            Debug("ScanRecipe: No item link available - might be a non-item recipe (like enchantment)")
+        end
+    end
+    
+    -- Method 2.5: Try spell ID direct lookup for non-item recipes (like enchantments)
+    if not spellId and recipeLink then
+        -- Some recipes might have spell ID in the recipe link itself
+        local potentialSpellId = recipeLink:match("|H.-:(%d+)|h")
+        if potentialSpellId then
+            potentialSpellId = tonumber(potentialSpellId)
+            Debug("ScanRecipe: Trying direct spell ID " .. potentialSpellId .. " from recipe link")
+            
+            -- Check if this spell ID exists in Recipe_Master as a key (for non-item recipes)
+            local confirmedSpellId = PL.GetSpellIdBySpellKey(potentialSpellId)
+            if confirmedSpellId then
+                spellId = confirmedSpellId
+                Debug("ScanRecipe: Confirmed spell ID " .. spellId .. " via spell key lookup for '" .. name .. "'")
+            end
+        end
+    end
+    
+    -- Method 3: Recipe name matching (fallback)
     if not spellId then
         Debug("ScanRecipe: Trying Recipe_Master database lookup for '" .. name .. "'")
         

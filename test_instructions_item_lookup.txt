@@ -1,0 +1,94 @@
+UPDATED TESTING INSTRUCTIONS - Identify Missing Recipes
+======================================================
+
+Great news that more elements are being resolved! Now let's identify exactly 
+which recipes are still missing and why.
+
+STEP 1: COMPREHENSIVE DIAGNOSTIC
+================================
+Run this to analyze Recipe_Master data patterns:
+/run loadfile("Interface\\AddOns\\CraftersBoard\\missing_recipes_diagnostic.lua")()
+
+This will show:
+- Success rates by lookup method
+- Which recipe patterns are failing
+- Detailed analysis of failure causes
+
+STEP 2: REAL-TIME PROFESSION SCANNING
+=====================================
+1. Open your profession window (Alchemy, Blacksmithing, etc.)
+2. Run the real-time test:
+   /run loadfile("Interface\\AddOns\\CraftersBoard\\realtime_scan_test.lua")()
+
+This will:
+- Test each recipe in your open profession window
+- Show exactly which ones fail and why
+- Display the WoW API data for failed recipes
+- Give detailed failure analysis
+
+STEP 3: ENABLE DETAILED DEBUG MODE
+==================================
+Enable maximum debugging to see what's happening:
+/script CRAFTERSBOARD_DB = {debug = true}
+
+Then do your normal profession scan and check the chat for:
+- "Method 1: Direct spell ID" messages
+- "Method 2: Item ID lookup" messages  
+- "Method 2.5: Spell key lookup" messages
+- "Method 3: Name matching" messages
+- "WARNING - No spell ID captured" messages
+
+STEP 4: IDENTIFY SPECIFIC FAILURE PATTERNS
+==========================================
+Look for these patterns in the failed recipes:
+
+PATTERN A - Missing Item Links:
+- Recipe has no GetTradeSkillItemLink() result
+- Usually enchantments or skill-ups
+- Should work with Method 2.5 (spell key lookup)
+
+PATTERN B - Item ID Not in Database:
+- Recipe creates item but item ID not in Recipe_Master
+- GetTradeSkillItemLink() works but lookup fails
+- Might need database updates
+
+PATTERN C - Name Mismatch:
+- Recipe name doesn't match item name
+- Classic WoW localization issues
+- Might need fuzzy matching
+
+PATTERN D - Special Recipe Types:
+- Skill-up recipes (no items created)
+- Quest recipes
+- Special profession abilities
+
+STEP 5: DETAILED ANALYSIS
+========================
+For each failed recipe, check:
+1. What does GetTradeSkillRecipeLink() return?
+2. What does GetTradeSkillItemLink() return?
+3. Is the extracted ID in Recipe_Master database?
+4. Does the recipe name match any item names?
+
+WHAT TO REPORT:
+==============
+Please share:
+1. Your profession type (Alchemy, Blacksmithing, etc.)
+2. How many recipes total vs successful vs failed
+3. Examples of failed recipe names and their details
+4. Which method works best (Item ID vs Spell Key vs Name)
+5. Any error messages or unusual patterns
+
+QUICK CHECK COMMANDS:
+====================
+Check specific recipe by name:
+/run print(CraftersBoard.ProfessionLinks.GetSpellIdFromRecipeMasterData("Recipe Name Here"))
+
+Check specific item ID:
+/run print(CraftersBoard.ProfessionLinks.GetSpellIdFromItemId(12345))
+
+Check specific spell ID:
+/run print(CraftersBoard.ProfessionLinks.GetSpellIdBySpellKey(6789))
+
+This detailed analysis will help us identify exactly what's still missing
+and implement the final fixes needed for 100% coverage!
