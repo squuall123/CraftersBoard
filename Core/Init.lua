@@ -68,3 +68,7 @@ function CB.Debug(msg)
     print("|cff00ff88CraftersBoard|r |cffff0000[DEBUG]|r " .. tostring(msg))
   end
 end
+
+-- Mark as initialized
+CB.isInitialized = true
+print("CraftersBoard: Core initialized (CB.isInitialized = true)")

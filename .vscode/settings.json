@@ -38,6 +38,11 @@
         "ReloadUI",
         "ChatFrame1EditBox",
         "DEFAULT_CHAT_FRAME",
-        "ChatFrame1"
+        "ChatFrame1",
+        "CLOSE",
+        "ACCEPT",
+        "PanelTemplates_SetNumTabs",
+        "UIParentLoadAddOn",
+        "PanelTemplates_SetTab"
     ]
 }

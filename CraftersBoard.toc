@@ -8,7 +8,18 @@
 # Core initialization and utilities
 Core\Init.lua
 Core\Database.lua
-Data\Vanilla.lua
+
+# Recipe databases (Recipe_Master complete dataset)
+Data\Recipes\Alchemy.lua
+Data\Recipes\Blacksmithing.lua  
+Data\Recipes\Cooking.lua
+Data\Recipes\Enchanting.lua
+Data\Recipes\Engineering.lua
+Data\Recipes\FirstAid.lua
+Data\Recipes\Leatherworking.lua
+Data\Recipes\Tailoring.lua
+Data\VanillaAccurateLoader.lua
+
 Core\DataDictionary.lua
 Core\Professions.lua
 Core\ProfessionLinks.lua

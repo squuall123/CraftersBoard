@@ -17,13 +17,18 @@
 -- 10. Core/Commands.lua     - Slash commands
 -- 11. CraftersBoard.lua     - This file (coordination)
 
+print("CraftersBoard: Main file loading...")
+
 local ADDON_NAME = ...
 
 -- Verify that the addon namespace was properly initialized by Core/Init.lua
 if not CraftersBoard then
+    print("ERROR: CraftersBoard namespace not found! Ensure Core/Init.lua loads first.")
     error("CraftersBoard namespace not found! Ensure Core/Init.lua loads first.")
     return
 end
+
+print("CraftersBoard: Main file - namespace verified")
 
 -- All functionality is now handled by the modular system:
 -- - UI creation and management: Core/UI.lua
