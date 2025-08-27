@@ -151,7 +151,7 @@ jobs:
     name: Deploy to CurseForge
     runs-on: ubuntu-latest
     needs: [package, release]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && (vars.DEPLOY_TO_CURSEFORGE == 'true' || secrets.CURSEFORGE_TOKEN != '')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -163,6 +163,9 @@ jobs:
 
       - name: Upload to CurseForge
         uses: itsmeow/curseforge-upload@v3
+        if: env.CURSEFORGE_TOKEN != ''
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
         with:
           token: ${{ secrets.CURSEFORGE_TOKEN }}
           project_id: 1330109  # From TOC file X-Curse-Project-ID
