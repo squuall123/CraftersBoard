@@ -105,8 +105,8 @@ local function CreateOptimizedProfessionData(professionId, skillLevel, knownReci
     if not OPTIMIZE_NETWORK_DATA or not CraftersBoard.CreateOptimizedRecipeData then
         return {
             professionId = professionId,
-            skillLevel = skillLevel,
-            recipes = knownRecipes,
+            currentSkill = skillLevel,  -- Fixed: was skillLevel, now currentSkill
+            knownRecipes = knownRecipes, -- Fixed: was recipes, now knownRecipes
             timestamp = time()
         }
     end
@@ -204,7 +204,7 @@ function PL.GetSpellIdFromRecipeMasterData(recipeName)
                     -- Get the actual item name from WoW API
                     local itemName = GetItemInfo(recipe.itemId)
                     if itemName and itemName == recipeName then
-                        CB.Debug("GetSpellIdFromRecipeMasterData: Found item match - " .. recipeName .. " → spellId " .. recipe.spellId .. " (itemId " .. recipe.itemId .. ")")
+                        -- CB.Debug("GetSpellIdFromRecipeMasterData: Found item match - " .. recipeName .. " → spellId " .. recipe.spellId .. " (itemId " .. recipe.itemId .. ")")
                         return recipe.spellId
                     end
                 end
@@ -214,7 +214,7 @@ function PL.GetSpellIdFromRecipeMasterData(recipeName)
                     -- The key might be a spell ID, check if spell name matches recipe name
                     local spellName = GetSpellInfo and GetSpellInfo(keyId)
                     if spellName and spellName == recipeName then
-                        CB.Debug("GetSpellIdFromRecipeMasterData: Found spell match - " .. recipeName .. " → spellId " .. keyId)
+                        -- CB.Debug("GetSpellIdFromRecipeMasterData: Found spell match - " .. recipeName .. " → spellId " .. keyId)
                         return keyId
                     end
                 end
@@ -226,14 +226,14 @@ function PL.GetSpellIdFromRecipeMasterData(recipeName)
     if CraftersBoard_VanillaData and CraftersBoard_VanillaData.SPELL_TO_RECIPE then
         for spellId, itemName in pairs(CraftersBoard_VanillaData.SPELL_TO_RECIPE) do
             if itemName == recipeName then
-                CB.Debug("GetSpellIdFromRecipeMasterData: Found in legacy layer - " .. recipeName .. " → spellId " .. spellId)
+                -- CB.Debug("GetSpellIdFromRecipeMasterData: Found in legacy layer - " .. recipeName .. " → spellId " .. spellId)
                 return spellId
             end
         end
     end
     
     -- Only print debug for missing recipes if debug is enabled
-    CB.Debug("GetSpellIdFromRecipeMasterData: No match found for '" .. recipeName .. "'")
+    -- CB.Debug("GetSpellIdFromRecipeMasterData: No match found for '" .. recipeName .. "'")
     return nil
 end
 
@@ -249,11 +249,11 @@ function PL.GetSpellIdFromItemId(itemId)
             if recipe then
                 -- Check if recipe has a spellId field
                 if recipe.spellId then
-                    CB.Debug("GetSpellIdFromItemId: Direct match - itemId " .. itemId .. " → spellId " .. recipe.spellId .. " (profession " .. professionId .. ")")
+                    -- CB.Debug("GetSpellIdFromItemId: Direct match - itemId " .. itemId .. " → spellId " .. recipe.spellId .. " (profession " .. professionId .. ")")
                     return recipe.spellId
                 -- For recipes without spellId (like enchantments), the key might be the spell ID
                 elseif not recipe.itemId and type(itemId) == "number" then
-                    CB.Debug("GetSpellIdFromItemId: Key-as-spellId match - using key " .. itemId .. " as spell ID (profession " .. professionId .. ")")
+                    -- CB.Debug("GetSpellIdFromItemId: Key-as-spellId match - using key " .. itemId .. " as spell ID (profession " .. professionId .. ")")
                     return itemId
                 end
             end
@@ -261,7 +261,7 @@ function PL.GetSpellIdFromItemId(itemId)
     end
     
     -- Only print debug for missing items if debug is enabled
-    CB.Debug("GetSpellIdFromItemId: No recipe found for itemId " .. itemId)
+    -- CB.Debug("GetSpellIdFromItemId: No recipe found for itemId " .. itemId)
     return nil
 end
 
@@ -277,7 +277,7 @@ function PL.GetSpellIdBySpellKey(spellId)
             if recipe then
                 -- If this is a non-item recipe (no itemId), the key is likely the spell ID
                 if not recipe.itemId then
-                    CB.Debug("GetSpellIdBySpellKey: Found non-item recipe - spellId " .. spellId .. " (profession " .. professionId .. ")")
+                    -- CB.Debug("GetSpellIdBySpellKey: Found non-item recipe - spellId " .. spellId .. " (profession " .. professionId .. ")")
                     return spellId
                 end
             end
@@ -321,15 +321,35 @@ end
 
 -- Deserialize optimized profession data
 function PL.DeserializeOptimizedData(serializedData)
-    if not serializedData or serializedData == "" then return false, nil end
+    CB.Debug("=== DESERIALIZEOPTIMIZEDDATA DEBUG ===")
+    CB.Debug("Input data: " .. tostring(serializedData))
     
+    if not serializedData or serializedData == "" then 
+        CB.Debug("DeserializeOptimizedData: Empty or nil data")
+        return false, nil 
+    end
+    
+    -- Split by ':' but preserve empty parts
     local parts = {}
-    for part in string.gmatch(serializedData, "([^:]+)") do
-        table.insert(parts, part)
+    local remaining = serializedData
+    while true do
+        local colonPos = string.find(remaining, ":")
+        if colonPos then
+            table.insert(parts, string.sub(remaining, 1, colonPos - 1))
+            remaining = string.sub(remaining, colonPos + 1)
+        else
+            table.insert(parts, remaining)
+            break
+        end
+    end
+    
+    CB.Debug("Found " .. #parts .. " colon-separated parts (preserving empty parts):")
+    for i, part in ipairs(parts) do
+        CB.Debug("  Part " .. i .. ": '" .. tostring(part) .. "'")
     end
     
     if #parts < 4 then
-        CB.Debug("Invalid optimized data format - not enough parts")
+        CB.Debug("Invalid optimized data format - not enough parts (need 4, got " .. #parts .. ")")
         return false, nil
     end
     
@@ -338,8 +358,17 @@ function PL.DeserializeOptimizedData(serializedData)
     local recipeIdString = parts[3] or ""
     local timestamp = tonumber(parts[4])
     
+    CB.Debug("Parsed values:")
+    CB.Debug("  professionId: " .. tostring(professionId))
+    CB.Debug("  currentSkill: " .. tostring(currentSkill))
+    CB.Debug("  recipeIdString: '" .. tostring(recipeIdString) .. "'")
+    CB.Debug("  timestamp: " .. tostring(timestamp))
+    
     if not professionId or not currentSkill or not timestamp then
         CB.Debug("Invalid optimized data format - invalid numbers")
+        CB.Debug("  professionId valid: " .. tostring(professionId ~= nil))
+        CB.Debug("  currentSkill valid: " .. tostring(currentSkill ~= nil))
+        CB.Debug("  timestamp valid: " .. tostring(timestamp ~= nil))
         return false, nil
     end
     
@@ -361,6 +390,12 @@ function PL.DeserializeOptimizedData(serializedData)
         timestamp = timestamp
     }
     
+    CB.Debug("Successfully created optimizedData structure:")
+    CB.Debug("  professionId: " .. tostring(optimizedData.professionId))
+    CB.Debug("  currentSkill: " .. tostring(optimizedData.currentSkill))
+    CB.Debug("  knownRecipes count: " .. tostring(#optimizedData.knownRecipes))
+    CB.Debug("  timestamp: " .. tostring(optimizedData.timestamp))
+    
     -- Debug function may not be available yet during early loading
     CB.Debug("Deserialized optimized data: profession " .. professionId .. ", skill " .. currentSkill .. ", " .. #knownRecipes .. " recipes")
     return true, optimizedData
@@ -368,6 +403,8 @@ end
 
 -- Initialize profession mappings safely
 local function InitializeProfessionMappings()
+    CB.Debug("=== INITIALIZING PROFESSION MAPPINGS ===")
+    
     local professionSpells = {
         {spell = 2259, id = 171, name = "Alchemy"},         -- Alchemy (Apprentice Alchemy)
         {spell = 2018, id = 164, name = "Blacksmithing"},   -- Blacksmithing (Apprentice Blacksmithing)
@@ -383,28 +420,31 @@ local function InitializeProfessionMappings()
         {spell = 7620, id = 356, name = "Fishing"},         -- Fishing (Apprentice Fishing)
     }
     
+    CB.Debug("Processing " .. #professionSpells .. " profession mappings...")
+    
     for _, prof in ipairs(professionSpells) do
         local spellName = GetSpellInfo(prof.spell)
         if spellName then
             -- Use spell name from game
             PROFESSION_IDS[spellName] = prof.id
             PROFESSION_NAMES[prof.id] = spellName
+            CB.Debug("  Mapped profession " .. prof.id .. " (" .. prof.name .. ") to spell name: " .. spellName)
         else
             -- Fallback to hardcoded name for missing spells
             PROFESSION_IDS[prof.name] = prof.id
             PROFESSION_NAMES[prof.id] = prof.name
-            -- Debug will be available when this is called later, but CRAFTERSBOARD_DB might not be
-            if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
-                print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r Using fallback name for profession: " .. prof.name .. " (spell " .. prof.spell .. " not found)")
-            end
+            CB.Debug("  Using fallback name for profession " .. prof.id .. ": " .. prof.name .. " (spell " .. prof.spell .. " not found)")
         end
     end
     
     local count = 0
     for _ in pairs(PROFESSION_NAMES) do count = count + 1 end
-    -- Use direct print since Debug function might not have CRAFTERSBOARD_DB available yet
-    if CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug then
-        print("|cffffff00CraftersBoard|r |cff00ff00[ProfLinks]|r Initialized " .. count .. " profession mappings")
+    CB.Debug("=== PROFESSION MAPPING COMPLETE: " .. count .. " professions initialized ===")
+    
+    -- Show all mappings for verification
+    CB.Debug("Final PROFESSION_NAMES mappings:")
+    for id, name in pairs(PROFESSION_NAMES) do
+        CB.Debug("  [" .. id .. "] = " .. name)
     end
 end
 
@@ -465,6 +505,77 @@ local function SendAddonMessageCompat(prefix, message, distribution, target)
     end
 end
 
+-- Debug command to test profession mappings
+function PL.TestMappings()
+    CB.Debug("=== TESTING PROFESSION MAPPINGS ===")
+    
+    CB.Debug("PROFESSION_NAMES contents:")
+    local count = 0
+    for id, name in pairs(PROFESSION_NAMES) do
+        count = count + 1
+        CB.Debug("  [" .. id .. "] = " .. name)
+    end
+    
+    if count == 0 then
+        CB.Debug("WARNING: PROFESSION_NAMES is empty!")
+        CB.Debug("Calling InitializeProfessionMappings()...")
+        InitializeProfessionMappings()
+    else
+        CB.Debug("Found " .. count .. " profession mappings")
+    end
+    
+    CB.Debug("PROFESSION_IDS contents:")
+    local idCount = 0
+    for name, id in pairs(PROFESSION_IDS) do
+        idCount = idCount + 1
+        CB.Debug("  [" .. name .. "] = " .. id)
+    end
+    CB.Debug("Found " .. idCount .. " profession ID mappings")
+end
+
+-- Add debug command to slash commands
+SLASH_TESTMAPPINGS1 = "/testmappings"
+SlashCmdList.TESTMAPPINGS = function()
+    PL.TestMappings()
+end
+
+-- Add debug command to test request/response mechanism
+SLASH_TESTREQUEST1 = "/testrequest"
+SlashCmdList.TESTREQUEST = function()
+    local playerName = UnitName("player")
+    local reqId = math.random(100000, 999999)
+    
+    print("|cffffff00CraftersBoard|r Testing request/response mechanism...")
+    print("Sending test request with reqId: " .. reqId)
+    
+    -- Store a test pending request
+    pendingRequests[reqId] = {
+        target = playerName,
+        profId = 186, -- Mining
+        timestamp = time(),
+        professionName = "Mining"
+    }
+    
+    -- Send a test request to ourselves
+    local message = "REQ:186:0:" .. reqId
+    local success = SendAddonMessageCompat(ADDON_MESSAGE_PREFIX, message, "WHISPER", playerName)
+    
+    if success then
+        print("✓ Test request sent successfully")
+        -- Set up a shorter timeout for testing
+        C_Timer.After(5, function()
+            if pendingRequests[reqId] then
+                print("✗ Test request timed out - no response received")
+                pendingRequests[reqId] = nil
+            else
+                print("✓ Test request completed successfully")
+            end
+        end)
+    else
+        print("✗ Failed to send test request")
+    end
+end
+
 -- Initialize profession mappings now that Debug is available
 InitializeProfessionMappings()
 
@@ -473,6 +584,22 @@ local function GetPlayerIdentifier(playerName)
     local name = playerName or UnitName("player") or "Unknown"
     local realm = GetRealmName and GetRealmName() or "Unknown"
     return name .. "-" .. realm
+end
+
+-- Utility function to normalize player names for consistent comparison
+local function NormalizePlayerName(playerName)
+    if not playerName then return nil end
+    
+    -- If it already contains realm, extract just the character name
+    local charName = playerName:match("([^-]+)")
+    return charName or playerName
+end
+
+-- Utility function to check if two player names refer to the same player
+local function IsSamePlayer(playerName1, playerName2)
+    local norm1 = NormalizePlayerName(playerName1)
+    local norm2 = NormalizePlayerName(playerName2)
+    return norm1 and norm2 and norm1 == norm2
 end
 
 -- Fallback: Get spell ID from recipe name using static mapping
@@ -489,7 +616,7 @@ function PL.GetSpellIdFromRecipeName(recipeName)
         end
     end
     
-    CB.Debug("GetSpellIdFromRecipeName: No spell ID found for recipe '" .. recipeName .. "'")
+    -- CB.Debug("GetSpellIdFromRecipeName: No spell ID found for recipe '" .. recipeName .. "'")
     return nil
 end
 
@@ -784,6 +911,10 @@ function PL.HandleCustomLink(link, text, button, chatFrame)
     
     CB.Debug("HandleCustomLink legacy format:")
     CB.Debug("  linkType: " .. tostring(linkType))
+    CB.Debug("  owner: " .. tostring(owner))
+    CB.Debug("  profId: " .. tostring(profId))
+    CB.Debug("  version: " .. tostring(version))
+    CB.Debug("  timestamp: " .. tostring(timestamp))
     
     if linkType == "cbprof" or linkType == "craftersboard" then
         -- Check for shift+click behavior (using WoW's standard modifier check)
@@ -810,6 +941,12 @@ function PL.HandleCustomLink(link, text, button, chatFrame)
         profId = tonumber(profId)
         version = tonumber(version)
         timestamp = tonumber(timestamp)
+        
+        CB.Debug("Converted values:")
+        CB.Debug("  profId (number): " .. tostring(profId))
+        CB.Debug("  profession name from ID: " .. tostring(PROFESSION_NAMES[profId]))
+        CB.Debug("  player: " .. tostring(player))
+        CB.Debug("  server: " .. tostring(server))
         
         -- Show profession viewer
         PL.ShowProfessionViewer(player, server, profId, timestamp)
@@ -880,9 +1017,11 @@ end
 function PL.OnAddonMessage(prefix, message, channel, sender)
     if prefix ~= ADDON_MESSAGE_PREFIX then return end
     
-    -- Ignore messages from ourselves
+    -- Ignore messages from ourselves unless we're in debug network mode
     if sender == UnitName("player") then
-        return
+        -- Check if this is a debug network mode test (look for debug network mode flag)
+        -- For now, we'll allow self-messages for testing purposes
+        CB.Debug("Received self-message - processing for debug/testing purposes")
     end
     
     CB.Debug("Received addon message from " .. sender .. ": " .. string.sub(message, 1, 50) .. (string.len(message) > 50 and "..." or ""))
@@ -913,34 +1052,50 @@ end
 
 -- Handle profession data requests
 function PL.HandleProfessionRequest(data, sender)
+    CB.Debug("===== HANDLING PROFESSION REQUEST =====")
     CB.Debug("Handling profession request from " .. sender)
+    CB.Debug("Request data: " .. tostring(data))
     
     local profId, sinceTs, reqId = data:match("^(%d+):(%d+):(%w+)")
     if not profId or not reqId then
-        CB.Debug("Invalid request format")
+        CB.Debug("Invalid request format - profId: " .. tostring(profId) .. ", reqId: " .. tostring(reqId))
         return
     end
     
     profId = tonumber(profId)
     sinceTs = tonumber(sinceTs)
     
+    CB.Debug("Parsed request - profId: " .. profId .. ", sinceTs: " .. sinceTs .. ", reqId: " .. reqId)
+    
     -- Find the requested profession
     local professionName = PROFESSION_NAMES[profId]
     if not professionName then
         CB.Debug("Unknown profession ID: " .. profId)
+        CB.Debug("Available profession IDs:")
+        for id, name in pairs(PROFESSION_NAMES) do
+            CB.Debug("  [" .. id .. "] = " .. name)
+        end
         local response = string.format("DATA:%s:1/1:ERROR_UNKNOWN_PROFESSION", reqId)
         SendAddonMessageCompat(ADDON_MESSAGE_PREFIX, response, "WHISPER", sender)
         return
     end
     
+    CB.Debug("Requested profession: " .. professionName)
+    
     -- Get profession snapshot
     local snapshot = professionSnapshots[professionName]
     if not snapshot then
         CB.Debug("No snapshot available for " .. professionName)
+        CB.Debug("Available snapshots:")
+        for name, snap in pairs(professionSnapshots) do
+            CB.Debug("  " .. name .. " (" .. #(snap.recipes or {}) .. " recipes)")
+        end
         local response = string.format("DATA:%s:1/1:ERROR_NO_DATA", reqId)
         SendAddonMessageCompat(ADDON_MESSAGE_PREFIX, response, "WHISPER", sender)
         return
     end
+    
+    CB.Debug("Found snapshot with " .. #(snapshot.recipes or {}) .. " recipes")
     
     -- Check if data is fresh enough
     if sinceTs > 0 and snapshot.timestamp <= sinceTs then
@@ -953,6 +1108,13 @@ function PL.HandleProfessionRequest(data, sender)
     -- Try optimized protocol first if enhanced database is available
     if OPTIMIZE_NETWORK_DATA and snapshot.optimizedData and snapshot.professionId then
         CB.Debug("Using optimized protocol with enhanced database")
+        
+        -- Debug: Check structure of snapshot.optimizedData
+        CB.Debug("=== SNAPSHOT.OPTIMIZEDDATA STRUCTURE ===")
+        for key, value in pairs(snapshot.optimizedData) do
+            CB.Debug("  " .. key .. ": " .. tostring(value))
+        end
+        CB.Debug("=== END STRUCTURE ===")
         
         local optimizedPayload = PL.SerializeOptimizedData(snapshot.optimizedData)
         if optimizedPayload then
@@ -971,15 +1133,18 @@ function PL.HandleProfessionRequest(data, sender)
     end
     
     -- Legacy protocol: serialize and compress the full data
-    CB.Debug("Using legacy protocol")
+    CB.Debug("===== USING LEGACY PROTOCOL =====")
+    CB.Debug("Using legacy protocol for request from " .. sender)
     
     local serializedData = PL.SerializeProfessionData(snapshot)
     if not serializedData then
-        CB.Debug("Failed to serialize profession data")
+        CB.Debug("CRITICAL ERROR: Failed to serialize profession data for " .. professionName)
         local response = string.format("DATA:%s:1/1:ERROR_SERIALIZATION", reqId)
         SendAddonMessageCompat(ADDON_MESSAGE_PREFIX, response, "WHISPER", sender)
         return
     end
+    
+    CB.Debug("Serialized data size: " .. #serializedData .. " bytes")
     
     -- Check data size and create fallback if needed
     local chunks = PL.CreateChunks(serializedData, MAX_ADDON_MESSAGE_SIZE - 50)
@@ -1072,13 +1237,18 @@ end
 
 -- Handle profession data responses
 function PL.HandleProfessionData(data, sender)
+    CB.Debug("===== HANDLING PROFESSION DATA =====")
     CB.Debug("Handling profession data from " .. sender)
+    CB.Debug("Data received: " .. string.sub(data, 1, 100) .. (#data > 100 and "..." or ""))
     
     local reqId, chunk, encodedData = data:match("^(%w+):([^:]+):(.+)")
     if not reqId then
-        CB.Debug("Invalid data format")
+        CB.Debug("CRITICAL ERROR: Invalid data format - could not parse reqId:chunk:data")
+        CB.Debug("Full data: " .. tostring(data))
         return
     end
+    
+    CB.Debug("Parsed data - reqId: " .. reqId .. ", chunk: " .. chunk .. ", encodedData length: " .. #encodedData)
     
     -- Check for error responses
     if encodedData:match("^ERROR_") then
@@ -1130,9 +1300,19 @@ end
 -- Handle optimized profession data (spell IDs)
 function PL.HandleOptimizedData(data, sender)
     CB.Debug("Handling optimized data from " .. sender)
-    CB.Debug("Raw data length: " .. #data)
+    CB.Debug("Raw data: " .. tostring(data))
     
-    local decompressed = PL.SimpleDecompress(data)
+    -- Parse reqId:compressedData format
+    local reqId, compressedData = data:match("^([^:]+):(.+)")
+    if not reqId or not compressedData then
+        CB.Debug("Invalid optimized data format - expected reqId:compressedData")
+        return
+    end
+    
+    CB.Debug("Extracted reqId: " .. reqId)
+    CB.Debug("Compressed data length: " .. #compressedData)
+    
+    local decompressed = PL.SimpleDecompress(compressedData)
     if not decompressed then
         CB.Debug("Failed to decompress optimized data")
         print("|cffffff00CraftersBoard|r |cffff0000ERROR:|r Failed to decompress data from " .. sender)
@@ -1141,6 +1321,26 @@ function PL.HandleOptimizedData(data, sender)
     
     CB.Debug("Decompressed data length: " .. #decompressed)
     CB.Debug("Decompressed data preview: " .. string.sub(decompressed, 1, 100) .. "...")
+    CB.Debug("Full decompressed data: " .. tostring(decompressed))
+    
+    -- Check what format the data is in
+    if string.find(decompressed, "|") then
+        CB.Debug("Data contains '|' - appears to be request format")
+    elseif string.find(decompressed, ":") then
+        CB.Debug("Data contains ':' - appears to be optimized format")
+    else
+        CB.Debug("Data format unclear - no ':' or '|' separators found")
+    end
+    
+    -- Count parts for debugging
+    local colonParts = {}
+    for part in string.gmatch(decompressed, "([^:]+)") do
+        table.insert(colonParts, part)
+    end
+    CB.Debug("Decompressed data has " .. #colonParts .. " colon-separated parts:")
+    for i, part in ipairs(colonParts) do
+        CB.Debug("  Part " .. i .. ": " .. tostring(part))
+    end
     
     -- Simple JSON-like deserialization for optimized data
     local success, optimizedData = PL.DeserializeOptimizedData(decompressed)
@@ -1150,9 +1350,13 @@ function PL.HandleOptimizedData(data, sender)
         return
     end
     
-    CB.Debug("Deserialized data contains " .. (#(optimizedData.spellIds or {})) .. " spell IDs")
-    CB.Debug("Profession: " .. tostring(optimizedData.profession or "nil"))
-    CB.Debug("Rank: " .. tostring(optimizedData.rank or "nil"))
+    CB.Debug("Deserialized data contains " .. (#(optimizedData.knownRecipes or {})) .. " recipe IDs")
+    CB.Debug("Profession ID: " .. tostring(optimizedData.professionId or "nil"))
+    CB.Debug("Current Skill: " .. tostring(optimizedData.currentSkill or "nil"))
+    
+    -- Get profession name from ID
+    local professionName = PROFESSION_NAMES[optimizedData.professionId] or "Unknown"
+    CB.Debug("Profession Name: " .. professionName)
     
     -- Convert to profession snapshot using the local function
     local resolvedRecipes = {}
@@ -1167,10 +1371,11 @@ function PL.HandleOptimizedData(data, sender)
               table.getn(CraftersBoard_VanillaData.SPELL_TO_RECIPE) or 0) .. " recipes")
     end
     
-    -- Resolve spell IDs to recipe names
-    for i, spellID in pairs(optimizedData.spellIds or {}) do
-        CB.Debug("Resolving spell ID: " .. tostring(spellID))
-        local recipe = PL.ResolveRecipeFromSpellID(spellID)
+    -- Resolve recipe IDs to recipe names (knownRecipes contains recipe IDs, not spell IDs)
+    for i, recipeID in pairs(optimizedData.knownRecipes or {}) do
+        CB.Debug("Processing recipe ID: " .. tostring(recipeID))
+        -- Note: knownRecipes should contain recipe spell IDs for lookup
+        local recipe = PL.ResolveRecipeFromSpellID(recipeID)
         if recipe and recipe.name then
             CB.Debug("✓ Resolved: " .. recipe.name .. " (source: " .. recipe.source .. ")")
             -- Create a recipe structure compatible with existing display code
@@ -1191,25 +1396,24 @@ function PL.HandleOptimizedData(data, sender)
     
     -- Debug summary
     CB.Debug("Resolution summary:")
-    CB.Debug("  Total spell IDs: " .. #(optimizedData.spellIds or {}))
+    CB.Debug("  Total recipe IDs: " .. #(optimizedData.knownRecipes or {}))
     CB.Debug("  Successfully resolved: " .. #resolvedRecipes)
     CB.Debug("  Failed to resolve: " .. #missingSpells)
     
     -- Show first few resolved recipes for verification
     for i = 1, math.min(3, #resolvedRecipes) do
         local r = resolvedRecipes[i]
-        CB.Debug("  Recipe " .. i .. ": " .. (r.name or "nil") .. " (ID: " .. tostring(r.spellID) .. ")")
+        -- CB.Debug("  Recipe " .. i .. ": " .. (r.name or "nil") .. " (ID: " .. tostring(r.spellID) .. ")")
     end
     
     -- Show first few missing spell IDs
     for i = 1, math.min(3, #missingSpells) do
-        CB.Debug("  Missing: " .. tostring(missingSpells[i]))
+        -- CB.Debug("  Missing: " .. tostring(missingSpells[i]))
     end
     
-    -- Validate profession name before creating snapshot
-    local professionName = optimizedData.profession
+    -- Use profession name from ID lookup
     if not professionName or professionName == "" then
-        CB.Debug("ERROR: No profession name in optimizedData!")
+        CB.Debug("ERROR: Could not resolve profession name from ID: " .. tostring(optimizedData.professionId))
         professionName = "Unknown"
     end
     
@@ -1218,34 +1422,39 @@ function PL.HandleOptimizedData(data, sender)
     -- Create profession snapshot with resolved recipes
     local snapshot = {
         name = professionName,
-        rank = optimizedData.rank or 0,
-        maxRank = optimizedData.maxRank or 0,
+        rank = optimizedData.currentSkill or 0,  -- Fixed: was optimizedData.rank
+        maxRank = 300, -- Default max skill for Classic professions
         timestamp = optimizedData.timestamp or time(),
         recipes = resolvedRecipes,
-        categories = optimizedData.categories or {},
+        categories = {}, -- Not available in optimized format
         optimized = true,
         missingSpells = missingSpells
     }
     
-    CB.Debug("Created snapshot - name: " .. tostring(snapshot.name) .. ", recipes: " .. #(snapshot.recipes or {}))
+    CB.Debug("Created snapshot - name: " .. tostring(snapshot.name) .. ", rank: " .. tostring(snapshot.rank) .. ", recipes: " .. #(snapshot.recipes or {}))
     
     -- Log transfer stats
     table.insert(transferStats, {
         type = "optimized_receive",
         resolvedCount = #resolvedRecipes,
         missingCount = #missingSpells,
-        totalSpells = #(optimizedData.spellIds or {}),
+        totalSpells = #(optimizedData.knownRecipes or {}),  -- Fixed: was optimizedData.spellIds
         timestamp = time(),
         sender = sender
     })
     
     CB.Debug(string.format("Optimized data received: %d/%d recipes resolved (%d missing)", 
-          #resolvedRecipes, #(optimizedData.spellIds or {}), #missingSpells))
+          #resolvedRecipes, #(optimizedData.knownRecipes or {}), #missingSpells))  -- Fixed: was optimizedData.spellIds
     
     if not snapshot then
         CB.Debug("Failed to process optimized recipe data")
         return
     end
+    
+    -- CRITICAL FIX: Cache the received optimized data just like regular data
+    local normalizedSender = NormalizePlayerName(sender)
+    PL.CacheProfessionData(normalizedSender, snapshot.name, snapshot)
+    CB.Debug("Cached optimized profession data for normalized name: " .. normalizedSender)
     
     -- Check if this was a request triggered by clicking a profession link
     local reqId = optimizedData.reqId
@@ -1257,7 +1466,7 @@ function PL.HandleOptimizedData(data, sender)
         end
         
         CB.Debug("Opening profession viewer for " .. viewRequest.playerName .. "'s " .. viewRequest.professionName .. " (optimized)")
-        PL.ShowProfessionData(sender, snapshot.name, snapshot)
+        PL.ShowProfessionData(normalizedSender, snapshot.name, snapshot)
         
         -- Clean up the view request
         if reqId then
@@ -1268,7 +1477,7 @@ function PL.HandleOptimizedData(data, sender)
         if professionViewerFrame then
             PL.HideLoadingSpinner(professionViewerFrame)
         end
-        PL.ShowProfessionData(sender, snapshot.name, snapshot)
+        PL.ShowProfessionData(normalizedSender, snapshot.name, snapshot)
     end
     
     -- Clean up pending request (only if reqId is not nil)
@@ -1303,6 +1512,99 @@ function PL.HandleCapabilities(data, sender)
 end
 
 -- Generate a profession link for the current player
+-- Modern profession link generation without deprecated APIs
+function PL.GenerateModernProfessionLink(targetProfession)
+    local professionName = targetProfession
+    
+    -- If no profession specified, try to find one from cached snapshots
+    if not professionName then
+        -- Look for any cached profession data
+        for profession, snapshot in pairs(professionSnapshots) do
+            if snapshot and snapshot.recipes and #snapshot.recipes > 0 then
+                professionName = profession
+                CB.Debug("Auto-detected profession: " .. profession)
+                break
+            end
+        end
+    end
+    
+    if not professionName or professionName == "" then
+        print("|cffffff00CraftersBoard|r No profession specified and no cached profession data found.")
+        print("|cffffff00CraftersBoard|r Usage: /cb link <profession name> (e.g., /cb link Alchemy)")
+        print("|cffffff00CraftersBoard|r Available professions: " .. table.concat(PL.GetAvailableProfessions(), ", "))
+        return nil
+    end
+    
+    -- Validate profession name
+    local profId = PROFESSION_IDS[professionName]
+    if not profId then
+        print("|cffffff00CraftersBoard|r Unknown profession: " .. professionName)
+        print("|cffffff00CraftersBoard|r Available professions: " .. table.concat(PL.GetAvailableProfessions(), ", "))
+        return nil
+    end
+    
+    CB.Debug("Profession validation in GenerateModernProfessionLink:")
+    CB.Debug("  professionName: " .. tostring(professionName))
+    CB.Debug("  profId: " .. tostring(profId))
+    CB.Debug("  PROFESSION_NAMES[profId]: " .. tostring(PROFESSION_NAMES[profId]))
+    
+    -- Debug: Show current PROFESSION_IDS and PROFESSION_NAMES mappings
+    CB.Debug("Current PROFESSION_IDS mappings:")
+    for name, id in pairs(PROFESSION_IDS) do
+        CB.Debug("  [" .. tostring(name) .. "] = " .. tostring(id))
+    end
+    CB.Debug("Current PROFESSION_NAMES mappings:")
+    for id, name in pairs(PROFESSION_NAMES) do
+        CB.Debug("  [" .. tostring(id) .. "] = " .. tostring(name))
+    end
+    
+    -- Check if we have data for this profession
+    local snapshot = professionSnapshots[professionName]
+    if not snapshot then
+        print("|cffffff00CraftersBoard|r No data available for " .. professionName)
+        print("|cffffff00CraftersBoard|r Try opening the " .. professionName .. " window and run '/cb scan' first")
+        return nil
+    end
+    
+    local timestamp = time()
+    local owner = GetPlayerIdentifier()
+    local playerName = UnitName("player") or "Unknown"
+    
+    CB.Debug("Modern link generation parameters:")
+    CB.Debug("  owner: " .. tostring(owner))
+    CB.Debug("  profId: " .. tostring(profId))
+    CB.Debug("  timestamp: " .. tostring(timestamp))
+    CB.Debug("  playerName: " .. tostring(playerName))
+    CB.Debug("  professionName: " .. tostring(professionName))
+    CB.Debug("  rank: " .. tostring(snapshot.rank or 0))
+    
+    local link = string.format(LINK_FORMAT, owner, profId, PROTOCOL_VERSION, timestamp, 
+                              playerName, professionName, snapshot.rank or 0)
+    
+    CB.Debug("Generated modern profession link: " .. link)
+    return link
+end
+
+-- Get list of available professions (those with cached data)
+function PL.GetAvailableProfessions()
+    local available = {}
+    for profession, snapshot in pairs(professionSnapshots) do
+        if snapshot and snapshot.recipes and #snapshot.recipes > 0 then
+            table.insert(available, profession)
+        end
+    end
+    
+    -- If no cached data, return all known profession names
+    if #available == 0 then
+        for profession, _ in pairs(PROFESSION_IDS) do
+            table.insert(available, profession)
+        end
+    end
+    
+    table.sort(available)
+    return available
+end
+
 function PL.GenerateProfessionLink(professionName)
     if not professionName then
         -- Try to get current profession from trade skill window (Classic Era compatibility)
@@ -1375,6 +1677,21 @@ end
 function PL.ShowProfessionViewer(player, server, profId, timestamp)
     local professionName = PROFESSION_NAMES[profId] or "Unknown"
     
+    CB.Debug("ShowProfessionViewer called with:")
+    CB.Debug("  player: " .. tostring(player))
+    CB.Debug("  server: " .. tostring(server))
+    CB.Debug("  profId: " .. tostring(profId))
+    CB.Debug("  timestamp: " .. tostring(timestamp))
+    CB.Debug("  resolved professionName: " .. tostring(professionName))
+    
+    -- Debug: Check if PROFESSION_NAMES is properly populated
+    local nameCount = 0
+    for id, name in pairs(PROFESSION_NAMES) do
+        nameCount = nameCount + 1
+        CB.Debug("  PROFESSION_NAMES[" .. id .. "] = " .. name)
+    end
+    CB.Debug("  Total profession names loaded: " .. nameCount)
+    
     CB.Debug("Opening profession viewer for " .. player .. "'s " .. professionName)
     
     -- Create/show the profession viewer first
@@ -1384,9 +1701,22 @@ function PL.ShowProfessionViewer(player, server, profId, timestamp)
     -- Check if we have cached data first
     local cachedData = PL.GetCachedProfessionData(player, professionName)
     if cachedData then
-        CB.Debug("Using cached data for " .. player .. "'s " .. professionName)
-        PL.ShowProfessionData(player, professionName, cachedData)
-        return
+        CB.Debug("Found cached data for " .. player .. "'s " .. professionName)
+        CB.Debug("  Cached data type: " .. type(cachedData))
+        CB.Debug("  Cached recipes: " .. (cachedData.recipes and #cachedData.recipes or "nil"))
+        CB.Debug("  Cached name: " .. tostring(cachedData.name))
+        
+        -- Validate that cached data is actually useful
+        if cachedData.recipes and #cachedData.recipes > 0 and cachedData.name then
+            CB.Debug("Using valid cached data for " .. player .. "'s " .. professionName)
+            PL.ShowProfessionData(player, professionName, cachedData)
+            return
+        else
+            CB.Debug("Cached data is invalid/empty, requesting fresh data")
+            -- Don't return here - fall through to request new data
+        end
+    else
+        CB.Debug("No cached data found for " .. player .. "'s " .. professionName)
     end
     
     -- Show loading state with spinner
@@ -1414,16 +1744,51 @@ function PL.RequestProfessionData(targetPlayer, profId, showInViewer)
     local supportsOptimized = PL.SupportsOptimizedProtocol(targetPlayer)
     CB.Debug("Capability check for " .. targetPlayer .. ": " .. tostring(supportsOptimized))
     
+    -- Enhanced debugging for capability detection
+    if not playerCapabilities[targetPlayer] then
+        CB.Debug("No capabilities found for " .. targetPlayer .. " - they may not have CraftersBoard or haven't announced capabilities")
+        CB.Debug("Will use legacy protocol as fallback")
+    else
+        CB.Debug("Found capabilities for " .. targetPlayer .. ":")
+        CB.Debug("  version: " .. tostring(playerCapabilities[targetPlayer].version))
+        CB.Debug("  supportsSpellIDs: " .. tostring(playerCapabilities[targetPlayer].supportsSpellIDs))
+        CB.Debug("  lastSeen: " .. tostring(playerCapabilities[targetPlayer].lastSeen))
+    end
+    
     local message
     if supportsOptimized then
         message = string.format("OPTIMIZED_REQUEST:%s:%d:%s", reqId, profId, showInViewer and "1" or "0")
         CB.Debug("Using optimized protocol for " .. targetPlayer)
+        CB.Debug("Message: " .. message)
     else
         message = string.format("REQ:%d:0:%s", profId, reqId)
         CB.Debug("Using legacy protocol for " .. targetPlayer)
+        CB.Debug("Message: " .. message)
     end
     
     CB.Debug("RequestProfessionData: Requesting " .. tostring(PROFESSION_NAMES[profId] or "Unknown") .. " from " .. targetPlayer)
+    
+    -- ENHANCED DEBUGGING: Check all values being used
+    CB.Debug("=== DETAILED REQUEST PARAMETERS ===")
+    CB.Debug("  targetPlayer: " .. tostring(targetPlayer))
+    CB.Debug("  profId: " .. tostring(profId))
+    CB.Debug("  showInViewer: " .. tostring(showInViewer))
+    CB.Debug("  reqId: " .. tostring(reqId))
+    CB.Debug("  PROFESSION_NAMES[profId]: " .. tostring(PROFESSION_NAMES[profId] or "NIL"))
+    CB.Debug("  Message to send: " .. tostring(message))
+    
+    -- Debug profession mappings
+    CB.Debug("=== CURRENT PROFESSION MAPPINGS ===")
+    local profCount = 0
+    for id, name in pairs(PROFESSION_NAMES) do
+        profCount = profCount + 1
+        CB.Debug("  ID[" .. tostring(id) .. "] -> " .. tostring(name))
+    end
+    CB.Debug("  Total profession mappings: " .. profCount)
+    
+    if profCount == 0 then
+        CB.Debug("CRITICAL ERROR: No profession mappings found! PROFESSION_NAMES is empty!")
+    end
     
     -- Store pending request
     pendingRequests[reqId] = {
@@ -1441,7 +1806,11 @@ function PL.RequestProfessionData(targetPlayer, profId, showInViewer)
     
     local success = SendAddonMessageCompat(ADDON_MESSAGE_PREFIX, message, "WHISPER", targetPlayer)
     if success then
-        CB.Debug("Sent profession request to " .. targetPlayer .. " (reqId: " .. reqId .. ")")
+        CB.Debug("✓ Successfully sent profession request to " .. targetPlayer .. " (reqId: " .. reqId .. ")")
+        CB.Debug("  Message: " .. tostring(message))
+        CB.Debug("  Channel: WHISPER")
+        CB.Debug("  Target: " .. targetPlayer)
+        
         local professionName = PROFESSION_NAMES[profId] or "profession"
         if PL.SupportsOptimizedProtocol(targetPlayer) then
             CB.Debug("Requesting " .. professionName .. " data from " .. targetPlayer .. "... (optimized)")
@@ -1454,42 +1823,48 @@ function PL.RequestProfessionData(targetPlayer, profId, showInViewer)
             if pendingRequests[reqId] then
                 CB.Debug("Request " .. reqId .. " timed out")
                 CB.Debug("Request for " .. (PROFESSION_NAMES[profId] or "profession") .. " data from " .. targetPlayer .. " timed out")
-                pendingRequests[reqId] = nil
                 
-                -- Also clean up view request if it exists
+                -- Enhanced timeout message with troubleshooting info
+                local timeoutMessage = "Request timed out - no response from player"
+                if not playerCapabilities[targetPlayer] then
+                    timeoutMessage = "No response - player may not have CraftersBoard addon or is offline"
+                else
+                    timeoutMessage = "Request timed out - player's addon may be unresponsive"
+                end
+                
+                -- Show error in viewer if this was a view request
                 if pendingViewRequests[reqId] then
+                    local professionName = PROFESSION_NAMES[profId] or "Unknown"
+                    PL.ShowViewerError(targetPlayer, professionName, timeoutMessage)
                     pendingViewRequests[reqId] = nil
+                end
+                
+                pendingRequests[reqId] = nil
+                print("|cffffff00CraftersBoard|r " .. timeoutMessage .. ": " .. targetPlayer)
+                
+                -- Suggest troubleshooting steps
+                if not playerCapabilities[targetPlayer] then
+                    print("|cffffff00CraftersBoard|r Make sure " .. targetPlayer .. " has CraftersBoard addon installed and is online")
                 end
             end
         end)
         
         return reqId
     else
-        CB.Debug("Failed to send profession request")
-        pendingRequests[reqId] = nil
-        -- Hide loading spinner on failure
-        if showInViewer and professionViewerFrame then
-            PL.HideLoadingSpinner(professionViewerFrame)
-        end
+        CB.Debug("Failed to send profession request to " .. targetPlayer)
         print("|cffffff00CraftersBoard|r Failed to send request to " .. targetPlayer)
+        
+        -- Clean up pending request
+        pendingRequests[reqId] = nil
+        
+        -- Show error immediately if request failed to send
+        if showInViewer then
+            local professionName = PROFESSION_NAMES[profId] or "Unknown"
+            PL.ShowViewerError(targetPlayer, professionName, "Failed to send request")
+        end
+        
         return nil
     end
-    
-    -- Set up timeout for the request
-    C_Timer.After(30, function()
-        if pendingRequests[reqId] then
-            CB.Debug("Request " .. reqId .. " timed out")
-            CB.Debug("Request for " .. (PROFESSION_NAMES[profId] or "profession") .. " data from " .. targetPlayer .. " timed out")
-            pendingRequests[reqId] = nil
-            
-            -- Also clean up view request if it exists
-            if pendingViewRequests[reqId] then
-                pendingViewRequests[reqId] = nil
-            end
-        end
-    end)
-    
-    return reqId
 end
 
 -- Public API for generating and posting profession links
@@ -1499,10 +1874,15 @@ function PL.HandleSlashCommand(args)
     cmd = cmd and cmd:lower()
     
     if cmd == "link" then
-        local link = PL.GenerateProfessionLink(param ~= "" and param or nil)
+        -- Updated to use modern profession detection
+        local targetProfession = param ~= "" and param or nil
+        local link = PL.GenerateModernProfessionLink(targetProfession)
         if link then
             print("|cffffff00CraftersBoard|r Profession link: " .. link)
             print("|cffffff00CraftersBoard|r Click link to view profession")
+        else
+            print("|cffffff00CraftersBoard|r Failed to generate profession link. Make sure you have profession data available.")
+            print("|cffffff00CraftersBoard|r Try: /cb scan first, or specify profession: /cb link <profession name>")
         end
     elseif cmd == "scan" then
         if PL.ForceScanCurrent() then
@@ -3067,9 +3447,9 @@ function PL.DeserializeCapabilities(data)
     return nil
 end
 
-function PL.DeserializeOptimizedData(data)
+function PL.DeserializeOptimizedRequest(data)
     if not data or data == "" or data == "optimized_data_placeholder" then
-        CB.Debug("DeserializeOptimizedData: Invalid or placeholder data")
+        CB.Debug("DeserializeOptimizedRequest: Invalid or placeholder data")
         return false, nil
     end
     
@@ -3080,7 +3460,7 @@ function PL.DeserializeOptimizedData(data)
     end
     
     if #parts < 5 then
-        CB.Debug("DeserializeOptimizedData: Invalid format, expected at least 5 parts, got " .. #parts)
+        CB.Debug("DeserializeOptimizedRequest: Invalid format, expected at least 5 parts, got " .. #parts)
         return false, nil
     end
     
@@ -3109,13 +3489,13 @@ function PL.DeserializeOptimizedData(data)
         spellIds = spellIds
     }
     
-    CB.Debug("DeserializeOptimizedData: Successfully deserialized " .. profession .. " with " .. #spellIds .. " spell IDs, reqId: " .. tostring(reqId))
+    CB.Debug("DeserializeOptimizedRequest: Successfully deserialized " .. profession .. " with " .. #spellIds .. " spell IDs, reqId: " .. tostring(reqId))
     return true, result
 end
 
-function PL.SerializeOptimizedData(data)
+function PL.SerializeOptimizedRequest(data)
     if not data then
-        CB.Debug("SerializeOptimizedData: No data provided")
+        CB.Debug("SerializeOptimizedRequest: No data provided")
         return "optimized_data_placeholder"
     end
     
@@ -3138,7 +3518,7 @@ function PL.SerializeOptimizedData(data)
     -- Format: reqId|profession|rank|maxRank|timestamp|spellId1,spellId2,spellId3...
     local result = tostring(reqId) .. "|" .. profession .. "|" .. rank .. "|" .. maxRank .. "|" .. timestamp .. "|" .. spellIdStr
     
-    CB.Debug("SerializeOptimizedData: Serialized " .. profession .. " with " .. (#(data.spellIds or {})) .. " spell IDs, reqId: " .. tostring(reqId))
+    CB.Debug("SerializeOptimizedRequest: Serialized " .. profession .. " with " .. (#(data.spellIds or {})) .. " spell IDs, reqId: " .. tostring(reqId))
     return result
 end
 
@@ -3326,19 +3706,24 @@ end
 function PL.StringToTable(str)
     if not str or str == "nil" then return nil end
     
+    CB.Debug("StringToTable: Attempting to parse " .. #str .. " byte string")
+    CB.Debug("String preview: " .. string.sub(str, 1, 200) .. (#str > 200 and "..." or ""))
+    
     -- Use loadstring to parse the table (be careful with security)
     local fn, err = loadstring("return " .. str)
     if not fn then
-        CB.Debug("Failed to parse table string: " .. (err or "unknown error"))
+        CB.Debug("CRITICAL ERROR: Failed to parse table string: " .. (err or "unknown error"))
+        CB.Debug("This might indicate a WoW loadstring restriction or malformed data")
         return nil
     end
     
     local ok, result = pcall(fn)
     if not ok then
-        CB.Debug("Failed to execute table string: " .. (result or "unknown error"))
+        CB.Debug("CRITICAL ERROR: Failed to execute table string: " .. (result or "unknown error"))
         return nil
     end
     
+    CB.Debug("StringToTable: Successfully parsed table")
     return result
 end
 
@@ -3360,12 +3745,17 @@ end
 
 -- Send chunked data with throttling to prevent disconnection
 function PL.SendChunkedData(targetPlayer, reqId, data)
+    CB.Debug("===== SENDING CHUNKED DATA =====")
+    CB.Debug("SendChunkedData called - target: " .. targetPlayer .. ", reqId: " .. reqId .. ", data size: " .. #data .. " bytes")
+    
     local chunks = PL.CreateChunks(data, MAX_ADDON_MESSAGE_SIZE - 50) -- Leave room for headers
     
     if #chunks == 0 then
-        CB.Debug("No data to send")
+        CB.Debug("CRITICAL ERROR: No data to send - CreateChunks returned empty")
         return false
     end
+    
+    CB.Debug("Created " .. #chunks .. " chunks from " .. #data .. " bytes (max chunk size: " .. (MAX_ADDON_MESSAGE_SIZE - 50) .. ")")
     
     -- Check if we're sending too much data
     if #chunks > MAX_CHUNKS_PER_REQUEST then
@@ -3463,6 +3853,10 @@ end
 
 -- Process complete profession data
 function PL.ProcessReceivedProfessionData(sender, reqId, serializedData)
+    CB.Debug("ProcessReceivedProfessionData called:")
+    CB.Debug("  sender: " .. tostring(sender))
+    CB.Debug("  reqId: " .. tostring(reqId))
+    CB.Debug("  data size: " .. string.len(serializedData) .. " bytes")
     CB.Debug("Processing complete profession data from " .. sender .. " (size: " .. string.len(serializedData) .. " bytes)")
     
     local snapshot = PL.DeserializeProfessionData(serializedData)
@@ -3473,12 +3867,25 @@ function PL.ProcessReceivedProfessionData(sender, reqId, serializedData)
         return
     end
     
-    CB.Debug("Deserialized profession data: " .. snapshot.name .. " with " .. #snapshot.recipes .. " recipes")
+    CB.Debug("Deserialized profession data:")
+    CB.Debug("  name: " .. tostring(snapshot.name))
+    CB.Debug("  recipes: " .. tostring(snapshot.recipes and "table" or "nil"))
+    CB.Debug("  recipes count: " .. tostring(snapshot.recipes and #snapshot.recipes or "nil"))
+    CB.Debug("  rank: " .. tostring(snapshot.rank))
+    CB.Debug("  maxRank: " .. tostring(snapshot.maxRank))
     
-    -- Validate the data
+    -- Validate essential data fields
     if not snapshot.name or snapshot.name == "" then
         CB.Debug("Invalid profession data: missing name")
-        print("|cffffff00CraftersBoard|r Invalid profession data from " .. sender)
+        print("|cffffff00CraftersBoard|r Invalid profession data from " .. sender .. " - missing profession name")
+        PL.ShowViewerError(sender, "Unknown", "Invalid profession data - missing name")
+        return
+    end
+    
+    if not snapshot.recipes then
+        CB.Debug("Invalid profession data: missing recipes table")
+        print("|cffffff00CraftersBoard|r Invalid profession data from " .. sender .. " - missing recipes")
+        PL.ShowViewerError(sender, snapshot.name, "Invalid profession data - missing recipes")
         return
     end
     
@@ -3489,21 +3896,24 @@ function PL.ProcessReceivedProfessionData(sender, reqId, serializedData)
         print("|cffffff00CraftersBoard|r Received " .. sender .. "'s " .. snapshot.name .. " (" .. #snapshot.recipes .. " recipes)")
     end
     
-    -- Cache the profession data using new system
-    PL.CacheProfessionData(sender, snapshot.name, snapshot)
+    -- Cache the profession data using normalized player name (without realm)
+    local normalizedSender = NormalizePlayerName(sender)
+    PL.CacheProfessionData(normalizedSender, snapshot.name, snapshot)
+    
+    CB.Debug("Cached profession data for normalized name: " .. normalizedSender)
     
     -- Check if this was a request triggered by clicking a profession link
     local viewRequest = pendingViewRequests[reqId]
     if viewRequest then
         -- This was from clicking a profession link - show the viewer
         CB.Debug("Opening profession viewer for " .. viewRequest.playerName .. "'s " .. viewRequest.professionName)
-        PL.ShowProfessionData(sender, snapshot.name, snapshot)
+        PL.ShowProfessionData(normalizedSender, snapshot.name, snapshot)
         
         -- Clean up the view request
         pendingViewRequests[reqId] = nil
     else
         -- This was a regular request - show in profession viewer as before
-        PL.ShowProfessionData(sender, snapshot.name, snapshot)
+        PL.ShowProfessionData(normalizedSender, snapshot.name, snapshot)
     end
     
     -- Clean up pending request
@@ -3647,7 +4057,7 @@ function PL.SendOptimizedRecipeData(targetPlayer, reqId, professionData)
         optimized = true -- Flag to indicate this is optimized data
     }
     
-    local serialized = PL.SerializeOptimizedData(optimizedData)
+    local serialized = PL.SerializeOptimizedRequest(optimizedData)
     local compressed = PL.SimpleCompress(serialized)
     
     -- Log transfer stats (simplified for now)
@@ -3738,6 +4148,29 @@ function PL.CreateLoadingSpinner(parent, size)
 end
 
 -- Show loading overlay on profession viewer
+-- Show loading state for profession viewer
+function PL.ShowViewerLoading(player, professionName)
+    -- Create viewer if it doesn't exist
+    if not professionViewerFrame then
+        CB.Debug("ShowViewerLoading: Creating profession viewer frame")
+        PL.CreateProfessionViewer()
+    end
+    
+    if not professionViewerFrame then
+        CB.Debug("ShowViewerLoading: Failed to create profession viewer frame")
+        return
+    end
+    
+    local message = "Loading " .. professionName .. " data from " .. player .. "..."
+    CB.Debug("ShowViewerLoading: " .. message)
+    
+    -- Show the viewer frame first
+    professionViewerFrame:Show()
+    
+    -- Use the existing loading spinner function
+    PL.ShowLoadingSpinner(professionViewerFrame, message)
+end
+
 function PL.ShowLoadingSpinner(frame, message)
     if loadingSpinners[frame] then
         return loadingSpinners[frame] -- Already showing
@@ -4675,10 +5108,27 @@ function PL.GenerateAndShowProfessionLink(frame)
     
     CB.Debug("GenerateAndShowProfessionLink: Creating link for " .. playerName .. "'s " .. professionName)
     
-    -- Generate the proper hyperlink format (same as scanopen workflow)
-    local linkData = string.format("%s:%s", playerName, professionName)
-    local linkText = string.format("[%s's %s]", playerName, professionName)
-    local hyperlink = string.format("|HcraftersProfession:%s|h%s|h", linkData, linkText)
+    -- Generate the proper link using the same format as GenerateProfessionLink
+    local profId = PROFESSION_IDS[professionName]
+    if not profId then
+        CB.Debug("GenerateAndShowProfessionLink: Unknown profession ID for " .. professionName)
+        print("|cffffff00CraftersBoard|r Unknown profession: " .. professionName)
+        return
+    end
+    
+    -- Get profession data for rank information
+    local snapshot = professionSnapshots[professionName]
+    local rank = 0
+    if snapshot then
+        rank = snapshot.rank or 0
+    end
+    
+    local timestamp = time()
+    local owner = GetPlayerIdentifier() -- Current player identifier
+    
+    -- Use the proper LINK_FORMAT that includes all required data
+    local hyperlink = string.format(LINK_FORMAT, owner, profId, PROTOCOL_VERSION, timestamp, 
+                                  playerName, professionName, rank)
     
     local theme = CB.getThemeColors()
     if not theme then
@@ -5013,32 +5463,41 @@ local function GetProfessionIconPath(professionName)
     
     return PROFESSION_ICONS[baseProfession] or PROFESSION_ICONS["Other"]
 end
+-- Show error in the profession viewer
+function PL.ShowViewerError(playerName, professionName, errorMessage)
+    CB.Debug("ShowViewerError: " .. playerName .. "'s " .. professionName .. " - " .. errorMessage)
+    print("|cffffff00CraftersBoard|r Error viewing " .. playerName .. "'s " .. professionName .. ": " .. errorMessage)
+    
+    -- You could also show this in a UI frame if you have one
+    -- For now, just print to chat
+end
 
 -- Show profession data function - this displays profession data using the unified view
 function PL.ShowProfessionData(playerName, professionName, snapshot)
-    -- Handle both old single-parameter and new three-parameter calling conventions
-    local professionData
-    
-    if professionName and snapshot then
-        -- New three-parameter format: (playerName, professionName, snapshot)
-        professionData = snapshot
-        professionData.player = playerName
-        professionData.profession = professionName
-    else
-        -- Old single-parameter format: just professionData
-        professionData = playerName -- playerName is actually professionData in this case
-    end
-    
-    if not professionData then
-        CB.Debug("No profession data provided to ShowProfessionData")
+    -- FIXED: Simplified to only handle three-parameter format
+    if not playerName or not professionName or not snapshot then
+        CB.Debug("ShowProfessionData: Missing required parameters")
+        CB.Debug("  playerName: " .. tostring(playerName))
+        CB.Debug("  professionName: " .. tostring(professionName))
+        CB.Debug("  snapshot: " .. tostring(snapshot and "present" or "nil"))
         return
     end
     
-    -- Ensure required fields exist
-    professionData.player = professionData.player or "Unknown"
-    professionData.profession = professionData.profession or professionData.name or "Unknown"
+    CB.Debug("ShowProfessionData called with player: " .. playerName .. ", profession: " .. professionName)
     
-    CB.Debug("ShowProfessionData called with player: " .. professionData.player .. ", profession: " .. professionData.profession)
+    -- Create the profession data structure for the viewer
+    local professionData = {
+        player = playerName,
+        profession = professionName,
+        level = snapshot.rank or 0,
+        maxLevel = snapshot.maxRank or 0,
+        recipes = snapshot.recipes or {},
+        categories = snapshot.categories or {},
+        timestamp = snapshot.timestamp or time(),
+        data = snapshot
+    }
+    
+    CB.Debug("Created professionData with " .. #professionData.recipes .. " recipes")
     
     -- Only show message if there's an issue (no debug for normal operation)
     local baseProfession = GetBaseProfession(professionData.profession)
@@ -5063,9 +5522,11 @@ function PL.ShowProfessionData(playerName, professionName, snapshot)
         local displayName = GetUserFriendlyProfessionName(professionData.profession)
         
         -- Show user-friendly name in title (e.g., "Goblin Engineering - PlayerName")
-        frame.TitleText:SetText((displayName or "Profession") .. " - " .. (professionData.player or "Unknown"))
+        local displayPlayerName = NormalizePlayerName(professionData.player) or professionData.player
+        frame.TitleText:SetText((displayName or "Profession") .. " - " .. displayPlayerName)
         frame:Show()
-        CB.Debug("Displayed profession data for: " .. (professionData.player or "Unknown") .. " (" .. (displayName or "Unknown") .. ")")
+        local displayPlayerName = NormalizePlayerName(professionData.player) or professionData.player
+        CB.Debug("Displayed profession data for: " .. displayPlayerName .. " (" .. (displayName or "Unknown") .. ")")
     end
 end
 
@@ -5084,7 +5545,8 @@ function PL.UpdateOverviewPanel(panel, playerName, snapshot)
     
     -- Update text fields
     panel.profName:SetText(snapshot.name or "Unknown Profession")
-    panel.playerName:SetText(playerName or "Unknown Player")
+    local displayPlayerName = NormalizePlayerName(playerName) or playerName
+    panel.playerName:SetText(displayPlayerName or "Unknown Player")
     panel.skillLevel:SetText(string.format("%d / %d", snapshot.rank or 0, snapshot.maxRank or 300))
     panel.recipeCount:SetText(string.format("Total Recipes: %d", #snapshot.recipes))
     panel.lastUpdated:SetText("Last Updated: " .. date("%m/%d %H:%M", snapshot.timestamp or 0))
@@ -5511,8 +5973,48 @@ end
 function PL.GetCachedProfessionData(playerName, professionName)
     if not playerName or not professionName then return nil end
     
+    -- Try exact match first
     if cachedProfessions[playerName] and cachedProfessions[playerName][professionName] then
-        return cachedProfessions[playerName][professionName]
+        local data = cachedProfessions[playerName][professionName]
+        -- Validate data before returning
+        if data and data.recipes and #data.recipes > 0 and data.name then
+            return data
+        else
+            CB.Debug("Found invalid cached data for " .. playerName .. " " .. professionName .. ", removing it")
+            cachedProfessions[playerName][professionName] = nil
+        end
+    end
+    
+    -- Try normalized player name (without realm)
+    local normalizedPlayerName = NormalizePlayerName(playerName)
+    if normalizedPlayerName and normalizedPlayerName ~= playerName then
+        if cachedProfessions[normalizedPlayerName] and cachedProfessions[normalizedPlayerName][professionName] then
+            local data = cachedProfessions[normalizedPlayerName][professionName]
+            -- Validate data before returning
+            if data and data.recipes and #data.recipes > 0 and data.name then
+                CB.Debug("Found cached data using normalized name: " .. normalizedPlayerName)
+                return data
+            else
+                CB.Debug("Found invalid cached data for " .. normalizedPlayerName .. " " .. professionName .. ", removing it")
+                cachedProfessions[normalizedPlayerName][professionName] = nil
+            end
+        end
+    end
+    
+    -- Try with realm added (in case we're looking up with just character name)
+    local playerWithRealm = GetPlayerIdentifier(playerName)
+    if playerWithRealm and playerWithRealm ~= playerName then
+        if cachedProfessions[playerWithRealm] and cachedProfessions[playerWithRealm][professionName] then
+            local data = cachedProfessions[playerWithRealm][professionName]
+            -- Validate data before returning
+            if data and data.recipes and #data.recipes > 0 and data.name then
+                CB.Debug("Found cached data using realm name: " .. playerWithRealm)
+                return data
+            else
+                CB.Debug("Found invalid cached data for " .. playerWithRealm .. " " .. professionName .. ", removing it")
+                cachedProfessions[playerWithRealm][professionName] = nil
+            end
+        end
     end
     
     return nil
@@ -5729,18 +6231,64 @@ end
 
 -- Handle profession link clicks
 function PL.HandleProfessionLink(link)
-    local playerName, professionName
+    local playerName, professionName, profId
     
-    -- Check if it's the full hyperlink format or just the data part
-    if link:match("|HcraftersProfession:") then
-        -- Parse the full link format: |HcraftersProfession:PlayerName:ProfessionName|h[Display Text]|h
-        local linkData = link:match("|HcraftersProfession:([^|]+)|h")
+    -- Ensure profession mappings are initialized
+    local mappingCount = 0
+    for _ in pairs(PROFESSION_NAMES) do mappingCount = mappingCount + 1 end
+    if mappingCount == 0 then
+        CB.Debug("PROFESSION_NAMES is empty, reinitializing mappings...")
+        InitializeProfessionMappings()
+    end
+    
+    -- Parse the new link format: |Hcraftersboard:owner:profId:version:timestamp|h[Display Text]|h
+    if link:match("|Hcraftersboard:") then
+        local linkData = link:match("|Hcraftersboard:([^|]+)|h")
         if linkData then
-            playerName, professionName = linkData:match("^([^:]+):(.+)$")
+            local owner, profIdStr, version, timestamp = linkData:match("^([^:]+):(%d+):(%d+):(%d+)$")
+            if owner and profIdStr then
+                playerName = owner
+                profId = tonumber(profIdStr)
+                professionName = PROFESSION_NAMES[profId]
+                CB.Debug("Parsed new format link - Owner: " .. owner .. ", ProfID: " .. profIdStr .. " (as number: " .. tostring(profId) .. "), ProfName: " .. (professionName or "unknown"))
+                
+                -- ENHANCED DEBUGGING: Check all parsed values
+                CB.Debug("=== LINK PARSING DETAILS ===")
+                CB.Debug("  Raw linkData: " .. tostring(linkData))
+                CB.Debug("  owner: " .. tostring(owner))
+                CB.Debug("  profIdStr: " .. tostring(profIdStr))
+                CB.Debug("  version: " .. tostring(version))
+                CB.Debug("  timestamp: " .. tostring(timestamp))
+                CB.Debug("  profId (number): " .. tostring(profId))
+                CB.Debug("  PROFESSION_NAMES lookup result: " .. tostring(professionName))
+                
+                if not professionName then
+                    CB.Debug("WARNING: ProfId " .. tostring(profId) .. " not found in PROFESSION_NAMES!")
+                end
+                
+                -- Debug: Check what's in PROFESSION_NAMES
+                CB.Debug("PROFESSION_NAMES contents:")
+                for id, name in pairs(PROFESSION_NAMES) do
+                    CB.Debug("  [" .. tostring(id) .. "] = " .. tostring(name))
+                end
+            end
         end
-    else
-        -- Parse just the data part: craftersProfession:PlayerName:ProfessionName
-        playerName, professionName = link:match("^craftersProfession:([^:]+):(.+)$")
+    end
+    
+    -- Fallback: Try old format for compatibility
+    if not playerName or not professionName then
+        if link:match("|HcraftersProfession:") then
+            -- Parse the old link format: |HcraftersProfession:PlayerName:ProfessionName|h[Display Text]|h
+            local linkData = link:match("|HcraftersProfession:([^|]+)|h")
+            if linkData then
+                playerName, professionName = linkData:match("^([^:]+):(.+)$")
+                CB.Debug("Parsed old format link - Player: " .. (playerName or "nil") .. ", Profession: " .. (professionName or "nil"))
+            end
+        else
+            -- Parse just the data part: craftersProfession:PlayerName:ProfessionName
+            playerName, professionName = link:match("^craftersProfession:([^:]+):(.+)$")
+            CB.Debug("Parsed data-only format - Player: " .. (playerName or "nil") .. ", Profession: " .. (professionName or "nil"))
+        end
     end
     
     if not playerName or not professionName then
@@ -5748,103 +6296,57 @@ function PL.HandleProfessionLink(link)
         return
     end
     
-    CB.Debug("Profession link clicked: " .. playerName .. "'s " .. professionName)
+    -- Normalize the player name for consistent cache lookup
+    local normalizedPlayerName = NormalizePlayerName(playerName)
+    CB.Debug("Profession link clicked: " .. playerName .. "'s " .. professionName .. " (normalized: " .. (normalizedPlayerName or "nil") .. ")")
     
     -- TEMPORARY DEBUG MODE: Force network testing for own profession links
-    local debugNetworkMode = true  -- FORCED ON FOR TESTING - REVERT LATER!
+    local debugNetworkMode = true  -- ENABLED: Test network flow with own links as if another player
     
     -- Try to show the profession data
     local snapshot = nil
     
-    -- Check if it's our own profession (skip cache in debug network mode)
-    if playerName == UnitName("player") and not debugNetworkMode then
+    -- Check if it's our own profession (use normalized names for comparison)
+    if IsSamePlayer(normalizedPlayerName, UnitName("player")) and not debugNetworkMode then
         snapshot = professionSnapshots[professionName]
         CB.Debug("Using local snapshot for own profession")
     else
-        if debugNetworkMode and playerName == UnitName("player") then
-            CB.Debug("DEBUG NETWORK MODE: Skipping local cache for own profession - will trigger network request")
+        if debugNetworkMode and IsSamePlayer(normalizedPlayerName, UnitName("player")) then
+            CB.Debug("DEBUG NETWORK MODE: Treating own profession as if from another player - will use network flow")
         end
-        -- Check cached data for other players
-        if cachedProfessions[playerName] and cachedProfessions[playerName][professionName] then
+        -- Check cached data for other players - use normalized name for cache lookup
+        if cachedProfessions[normalizedPlayerName] and cachedProfessions[normalizedPlayerName][professionName] then
+            snapshot = cachedProfessions[normalizedPlayerName][professionName]
+            CB.Debug("Using cached data for " .. normalizedPlayerName .. " (normalized name)")
+        elseif cachedProfessions[playerName] and cachedProfessions[playerName][professionName] then
             snapshot = cachedProfessions[playerName][professionName]
-            CB.Debug("Using cached data for " .. playerName)
+            CB.Debug("Using cached data for " .. playerName .. " (original name)")
+        else
+            CB.Debug("No cached data found for " .. normalizedPlayerName .. " or " .. playerName)
         end
     end
-    
+   
     if snapshot then
-        -- Create the proper profession data structure with correct field mapping
-        local professionData = {
-            player = playerName,
-            profession = professionName,
-            level = snapshot.rank,  -- Map rank -> level
-            maxLevel = snapshot.maxRank,  -- Map maxRank -> maxLevel
-            recipes = snapshot.recipes,
-            categories = snapshot.categories,  -- Pass through categories for organization
-            timestamp = snapshot.timestamp,
-            data = snapshot  -- Keep original data too
-        }
-        PL.ShowProfessionData(professionData)
+        -- Debug the snapshot structure
+        CB.Debug("HandleProfessionLink: Found snapshot for " .. playerName .. "'s " .. professionName)
+        CB.Debug("  Snapshot.recipes type: " .. type(snapshot.recipes))
+        CB.Debug("  Snapshot.recipes count: " .. (snapshot.recipes and #snapshot.recipes or "nil"))
+        CB.Debug("  Snapshot.categories type: " .. type(snapshot.categories or "nil"))
+        CB.Debug("  Snapshot.categories available: " .. tostring(snapshot.categories and next(snapshot.categories) and true or false))
+        
+        -- FIXED: Use proper three-parameter calling convention
+        PL.ShowProfessionData(playerName, professionName, snapshot)
         CB.Debug("Showing cached data for " .. playerName .. "'s " .. professionName)
     else
         -- No data available - check if we should request it
         local profId = PROFESSION_IDS[professionName]
         
-        -- SPECIAL CASE: Debug network mode with own profession
-        if debugNetworkMode and playerName == UnitName("player") and profId then
-            CB.Debug("DEBUG NETWORK MODE: Simulating network flow for own profession")
-            
-            -- Get our own profession snapshot
-            local ownSnapshot = professionSnapshots[professionName]
-            if ownSnapshot then
-                -- Simulate the optimized data sending process
-                CB.Debug("Simulating optimized data extraction and sending...")
-                
-                -- Generate a fake request ID
-                local reqId = "debug_" .. time()
-                
-                -- Simulate sending optimized data to ourselves
-                CB.Debug("Step 1: Extracting spell IDs from profession data...")
-                local spellIds = PL.ExtractSpellIDs(ownSnapshot.recipes)
-                
-                if #spellIds == 0 then
-                    CB.Debug("No spell IDs found - this is the problem!")
-                    print("|cffffff00CraftersBoard|r DEBUG: No spell IDs found in profession data")
-                    return
-                end
-                
-                CB.Debug("Step 2: Creating optimized data structure...")
-                local optimizedData = {
-                    reqId = reqId,
-                    profession = ownSnapshot.name,
-                    rank = ownSnapshot.rank,
-                    maxRank = ownSnapshot.maxRank,
-                    timestamp = ownSnapshot.timestamp,
-                    spellIds = spellIds,
-                    categories = ownSnapshot.categories or {},
-                    optimized = true
-                }
-                
-                CB.Debug("Step 3: Serializing optimized data...")
-                local serialized = PL.SerializeOptimizedData(optimizedData)
-                
-                CB.Debug("Step 4: Compressing data...")
-                local compressed = PL.SimpleCompress(serialized)
-                
-                CB.Debug("Step 5: Simulating network receive and decompression...")
-                -- Now simulate receiving this data
-                PL.HandleOptimizedData(compressed, playerName)
-            else
-                print("|cffffff00CraftersBoard|r No profession data to test with. Try opening your profession window to scan first.")
-            end
-            return
-        end
-        
-        if profId and playerName ~= UnitName("player") then
+        if profId then
             
             -- Check if we already have a pending request for this player/profession
             local alreadyRequesting = false
             for reqId, request in pairs(pendingRequests) do
-                if request.target == playerName and request.professionName == professionName then
+                if (request.target == playerName or request.target == normalizedPlayerName) and request.professionName == professionName then
                     local requestAge = time() - request.timestamp
                     if requestAge < 30 then -- Still within timeout period
                         alreadyRequesting = true
@@ -5865,8 +6367,8 @@ function PL.HandleProfessionLink(link)
                 CB.Debug("No data available for " .. playerName .. "'s " .. professionName)
                 CB.Debug("Requesting fresh data...")
                 
-                -- Send automatic data request
-                local reqId = PL.RequestProfessionData(playerName, profId)
+                -- Send automatic data request using normalized player name
+                local reqId = PL.RequestProfessionData(normalizedPlayerName, profId)
                 
                 if reqId then
                     -- Store the request so we can show the data when it arrives
@@ -5874,20 +6376,16 @@ function PL.HandleProfessionLink(link)
                         pendingViewRequests = {}
                     end
                     pendingViewRequests[reqId] = {
-                        playerName = playerName,
+                        playerName = normalizedPlayerName,  -- Use normalized name for consistency
                         professionName = professionName,
                         timestamp = time()
                     }
-                    CB.Debug("Marked request " .. reqId .. " as view request")
+                    CB.Debug("Marked request " .. reqId .. " as view request for normalized name: " .. normalizedPlayerName)
                 end
             end
         else
             print("|cffffff00CraftersBoard|r No data available for " .. playerName .. "'s " .. professionName)
-            if playerName == UnitName("player") then
-                print("|cffffff00CraftersBoard|r Try opening your " .. professionName .. " window to scan the profession.")
-            else
-                print("|cffffff00CraftersBoard|r Ensure they have the CraftersBoard addon and try again.")
-            end
+            print("|cffffff00CraftersBoard|r Requesting data or ensure the player has CraftersBoard addon...")
         end
     end
 end
