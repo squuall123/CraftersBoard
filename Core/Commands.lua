@@ -505,7 +505,7 @@ local function handleSlashCommand(msg)
     
   -- ProfessionLinks commands integration
   elseif cmd == "link" or cmd == "post" or cmd == "trade" or cmd == "group" or cmd == "party" or cmd == "raid" or cmd == "scan" or 
-         cmd == "info" or cmd == "snapshots" or cmd == "cache" or 
+         cmd == "info" or cmd == "snapshots" or cmd == "cache" or cmd == "debug" or
          cmd == "cleanup" or cmd == "stats" or cmd == "viewer" or cmd == "ui" or
          cmd == "test" or cmd == "clear" then
     -- Route to ProfessionLinks module
@@ -541,6 +541,7 @@ local function handleSlashCommand(msg)
     print("  /cb trade                   - post profession link to trade")
     print("  /cb group                   - post profession link to group chat")
     print("  /cb scan                    - scan current profession")
+    print("  /cb debug on|off|names      - enable debug mode or run profession debug")
     print("  /cb test scenario basic     - run profession link tests")
     print("  /cb testdict                - test dictionary compression system")
     print("  /cb professionfilter <name> - test profession filtering (e.g., Alchemy)")

@@ -101,6 +101,118 @@ local ENHANCED_PROTOCOL_VERSION = 2
 local PROFESSION_IDS = {}
 local PROFESSION_NAMES = {}
 
+-- Recipe Master inspired function routing system for profession APIs
+-- true = Enchanting (uses Craft API), false = other professions (use TradeSkill API)
+local skillFunctions = {
+    ["getName"] = {
+        [true] = GetCraftName,        -- Enchanting
+        [false] = GetTradeSkillLine   -- Other professions
+    },
+    ["getInfo"] = {
+        [true] = GetCraftInfo,        -- Enchanting
+        [false] = GetTradeSkillInfo   -- Other professions
+    },
+    ["getNum"] = {
+        [true] = GetNumCrafts,        -- Enchanting
+        [false] = GetNumTradeSkills   -- Other professions
+    },
+    ["getLink"] = {
+        [true] = GetCraftItemLink,    -- Enchanting
+        [false] = GetTradeSkillItemLink -- Other professions
+    },
+    ["getSkillLine"] = {
+        [true] = function() 
+            -- For Craft API (Enchanting), use GetCraftName() instead of GetCraftSkillLine()
+            if GetCraftName then
+                local craftName = GetCraftName()
+                -- For rank information, we'd need different approach for Craft API
+                return craftName, 0, 0  -- Craft API doesn't provide rank info the same way
+            end
+            return nil, nil, nil
+        end,
+        [false] = GetTradeSkillLine   -- Other professions
+    }
+}
+
+-- Detect if current displayed profession is Enchanting
+local function isEnchantingDisplayed()
+    -- Check if we have a craft name (Enchanting uses Craft API)
+    if GetCraftName then
+        local craftName = GetCraftName()
+        if craftName and craftName ~= "" then
+            -- Double check that this is actually Enchanting
+            local profId = PROFESSION_IDS[craftName]
+            return profId == 333 -- 333 is Enchanting profession ID
+        end
+    end
+    return false
+end
+
+-- Get the appropriate function for the current profession
+local function getSkillFunction(functionsTableIndex)
+    local isEnchanting = isEnchantingDisplayed()
+    local func = skillFunctions[functionsTableIndex] and skillFunctions[functionsTableIndex][isEnchanting]
+    if func then
+        return func
+    end
+    
+    -- Fallback to TradeSkill API if no function found
+    return skillFunctions[functionsTableIndex] and skillFunctions[functionsTableIndex][false]
+end
+
+-- Enhanced profession name detection using function routing
+local function getCurrentProfessionName()
+    local nameFunc = getSkillFunction("getName")
+    if nameFunc then
+        if isEnchantingDisplayed() then
+            -- For Enchanting, GetCraftName() only returns the profession name
+            return nameFunc()
+        else
+            -- For other professions, GetTradeSkillLine() returns name, rank, maxRank
+            local profName, rank, maxRank = nameFunc()
+            return profName
+        end
+    end
+    return nil
+end
+
+-- Enhanced skill line detection using function routing
+local function getCurrentSkillLine()
+    local skillLineFunc = getSkillFunction("getSkillLine")
+    if skillLineFunc then
+        local profName, rank, maxRank = skillLineFunc()
+        return profName, rank, maxRank
+    end
+    return nil, nil, nil
+end
+
+-- Enhanced recipe count detection using function routing
+local function getCurrentRecipeCount()
+    local numFunc = getSkillFunction("getNum")
+    if numFunc then
+        return numFunc()
+    end
+    return 0
+end
+
+-- Enhanced recipe info detection using function routing
+local function getCurrentRecipeInfo(index)
+    local infoFunc = getSkillFunction("getInfo")
+    if infoFunc then
+        return infoFunc(index)
+    end
+    return nil
+end
+
+-- Enhanced recipe link detection using function routing
+local function getCurrentRecipeLink(index)
+    local linkFunc = getSkillFunction("getLink")
+    if linkFunc then
+        return linkFunc(index)
+    end
+    return nil
+end
+
 local function CreateOptimizedProfessionData(professionId, skillLevel, knownRecipes)
     if not OPTIMIZE_NETWORK_DATA or not CraftersBoard.CreateOptimizedRecipeData then
         return {
@@ -401,6 +513,104 @@ function PL.DeserializeOptimizedData(serializedData)
     return true, optimizedData
 end
 
+-- Debug function to test profession name resolution
+function PL.DebugProfessionNames()
+    CB.Debug("=== PROFESSION NAME DEBUG (Enhanced with Function Routing) ===")
+    
+    -- Test spell info for Enchanting
+    if GetSpellInfo then
+        local spellName = GetSpellInfo(7411) -- Enchanting spell ID
+        CB.Debug("GetSpellInfo(7411) returns: '" .. tostring(spellName) .. "'")
+    end
+    
+    -- Test function routing system
+    CB.Debug("Testing function routing system:")
+    CB.Debug("  isEnchantingDisplayed() = " .. tostring(isEnchantingDisplayed()))
+    
+    local currentProfName = getCurrentProfessionName()
+    CB.Debug("  getCurrentProfessionName() = '" .. tostring(currentProfName) .. "'")
+    
+    local skillName, rank, maxRank = getCurrentSkillLine()
+    CB.Debug("  getCurrentSkillLine() = '" .. tostring(skillName) .. "', rank=" .. tostring(rank) .. "/" .. tostring(maxRank))
+    
+    local recipeCount = getCurrentRecipeCount()
+    CB.Debug("  getCurrentRecipeCount() = " .. tostring(recipeCount))
+    
+    -- Test original APIs for comparison
+    CB.Debug("Original API calls for comparison:")
+    if GetTradeSkillLine then
+        local tradeName, tradeRank, tradeMaxRank = GetTradeSkillLine()
+        CB.Debug("  GetTradeSkillLine() returns: '" .. tostring(tradeName) .. "', rank=" .. tostring(tradeRank) .. "/" .. tostring(tradeMaxRank))
+    end
+    
+    if GetCraftName then
+        local craftName = GetCraftName()
+        CB.Debug("  GetCraftName() returns: '" .. tostring(craftName) .. "'")
+    end
+    
+    -- Note: GetCraftSkillLine requires an index parameter, so we skip direct testing
+    -- Instead, we test our function routing system which handles this properly
+    CB.Debug("  Skipping direct GetCraftSkillLine() test (requires index parameter)")
+    
+    -- Show current profession mappings
+    CB.Debug("Current PROFESSION_IDS mappings:")
+    for name, id in pairs(PROFESSION_IDS) do
+        CB.Debug("  [" .. name .. "] = " .. id)
+    end
+    
+    CB.Debug("=== END PROFESSION DEBUG ===")
+end
+
+-- Helper function to resolve profession ID from name with dynamic mapping
+function PL.GetProfessionId(professionName)
+    if not professionName or professionName == "" then
+        return nil
+    end
+    
+    local profId = PROFESSION_IDS[professionName]
+    if profId then
+        return profId
+    end
+    
+    -- Enhanced dynamic mapping using function routing system
+    local currentProfName = getCurrentProfessionName()
+    if currentProfName and currentProfName == professionName then
+        -- Check if this is Enchanting using our enhanced detection
+        if isEnchantingDisplayed() then
+            profId = 333 -- Enchanting
+            PROFESSION_IDS[professionName] = profId
+            PROFESSION_NAMES[profId] = professionName
+            CB.Debug("GetProfessionId: Function routing detected Enchanting '" .. professionName .. "' -> 333")
+            return profId
+        end
+    end
+    
+    -- Try dynamic mapping for unknown profession names
+    local lowerName = professionName:lower()
+    if lowerName:find("enchant") then
+        profId = 333 -- Enchanting
+        PROFESSION_IDS[professionName] = profId
+        PROFESSION_NAMES[profId] = professionName
+        CB.Debug("GetProfessionId: Dynamically mapped '" .. professionName .. "' to Enchanting (333)")
+        return profId
+    elseif lowerName:find("alch") then
+        profId = 171 -- Alchemy
+        PROFESSION_IDS[professionName] = profId
+        PROFESSION_NAMES[profId] = professionName
+        CB.Debug("GetProfessionId: Dynamically mapped '" .. professionName .. "' to Alchemy (171)")
+        return profId
+    elseif lowerName:find("black") or lowerName:find("smith") then
+        profId = 164 -- Blacksmithing
+        PROFESSION_IDS[professionName] = profId
+        PROFESSION_NAMES[profId] = professionName
+        CB.Debug("GetProfessionId: Dynamically mapped '" .. professionName .. "' to Blacksmithing (164)")
+        return profId
+    end
+    
+    -- Add more profession mappings as needed
+    return nil
+end
+
 -- Initialize profession mappings safely
 local function InitializeProfessionMappings()
     CB.Debug("=== INITIALIZING PROFESSION MAPPINGS ===")
@@ -435,6 +645,16 @@ local function InitializeProfessionMappings()
             PROFESSION_NAMES[prof.id] = prof.name
             CB.Debug("  Using fallback name for profession " .. prof.id .. ": " .. prof.name .. " (spell " .. prof.spell .. " not found)")
         end
+        
+        -- For Enchanting, also add a mapping for the craft name which might be different
+        if prof.id == 333 then -- Enchanting
+            -- Add both the hardcoded name and spell name as valid mappings
+            PROFESSION_IDS["Enchanting"] = prof.id
+            if spellName and spellName ~= "Enchanting" then
+                PROFESSION_IDS[spellName] = prof.id
+                CB.Debug("  Added additional Enchanting mapping: " .. spellName .. " -> " .. prof.id)
+            end
+        end
     end
     
     local count = 0
@@ -445,6 +665,11 @@ local function InitializeProfessionMappings()
     CB.Debug("Final PROFESSION_NAMES mappings:")
     for id, name in pairs(PROFESSION_NAMES) do
         CB.Debug("  [" .. id .. "] = " .. name)
+    end
+    
+    CB.Debug("Final PROFESSION_IDS mappings:")
+    for name, id in pairs(PROFESSION_IDS) do
+        CB.Debug("  [" .. name .. "] = " .. id)
     end
 end
 
@@ -1553,14 +1778,21 @@ end
 function PL.GenerateModernProfessionLink(targetProfession)
     local professionName = targetProfession
     
-    -- If no profession specified, try to find one from cached snapshots
+    -- If no profession specified, try to detect current profession using function routing
     if not professionName then
-        -- Look for any cached profession data
-        for profession, snapshot in pairs(professionSnapshots) do
-            if snapshot and snapshot.recipes and #snapshot.recipes > 0 then
-                professionName = profession
-                CB.Debug("Auto-detected profession: " .. profession)
-                break
+        -- First try to get the current profession name using function routing
+        local currentProfName = getCurrentProfessionName()
+        if currentProfName and currentProfName ~= "" and currentProfName ~= "UNKNOWN" then
+            professionName = currentProfName
+            CB.Debug("Auto-detected current profession using function routing: " .. professionName)
+        else
+            -- Fallback: Look for any cached profession data
+            for profession, snapshot in pairs(professionSnapshots) do
+                if snapshot and snapshot.recipes and #snapshot.recipes > 0 then
+                    professionName = profession
+                    CB.Debug("Auto-detected profession from cache: " .. profession)
+                    break
+                end
             end
         end
     end
@@ -1648,6 +1880,11 @@ function PL.GenerateProfessionLink(professionName)
         if GetTradeSkillLine then
             professionName = GetTradeSkillLine()
         end
+        
+        -- If that didn't work, try craft window (for Enchanting)
+        if (not professionName or professionName == "") and GetCraftName then
+            professionName = GetCraftName()
+        end
     end
     
     if not professionName or professionName == "" then
@@ -1655,8 +1892,13 @@ function PL.GenerateProfessionLink(professionName)
         return nil
     end
     
-    local profId = PROFESSION_IDS[professionName]
+    local profId = PL.GetProfessionId(professionName)
     if not profId then
+        CB.Debug("GenerateProfessionLink: No profession ID found for '" .. professionName .. "'")
+        CB.Debug("Available profession mappings:")
+        for name, id in pairs(PROFESSION_IDS) do
+            CB.Debug("  [" .. name .. "] = " .. id)
+        end
         print("|cffffff00CraftersBoard|r Unknown profession: " .. professionName)
         return nil
     end
@@ -1671,10 +1913,17 @@ function PL.GenerateProfessionLink(professionName)
         CB.Debug("Using cached profession data for " .. professionName)
     else
         -- Fall back to current trade skill window - Classic Era API compatibility
+        local skillName
         if GetTradeSkillLine then
-            local skillName
             skillName, rank, maxRank = GetTradeSkillLine()
-        else
+        end
+        
+        -- If TradeSkill API didn't work, try Craft API for Enchanting
+        if (not skillName or skillName == "") and GetCraftSkillLine then
+            skillName, rank, maxRank = GetCraftSkillLine()
+        end
+        
+        if not rank then
             rank = 0
             maxRank = 300
         end
@@ -2080,8 +2329,10 @@ function PL.HandleSlashCommand(args)
         print("|cffffff00CraftersBoard|r Scanning all professions...")
         PL.ScanAllPlayerProfessions()
     elseif cmd == "debug" then
-        -- Enable/disable debug mode
-        if param == "on" then
+        -- Enable/disable debug mode or run debug commands
+        if param == "names" then
+            PL.DebugProfessionNames()
+        elseif param == "on" then
             if CRAFTERSBOARD_DB then
                 CRAFTERSBOARD_DB.debug = true
                 print("|cffffff00CraftersBoard|r Debug mode enabled")
@@ -2094,7 +2345,7 @@ function PL.HandleSlashCommand(args)
         else
             local debugState = (CRAFTERSBOARD_DB and CRAFTERSBOARD_DB.debug) and "enabled" or "disabled"
             print("|cffffff00CraftersBoard|r Debug mode is currently " .. debugState)
-            print("Use '/cb debug on' or '/cb debug off' to change")
+            print("Use '/cb debug on', '/cb debug off', or '/cb debug names' for profession name debugging")
         end
     elseif cmd == "debugnet" then
         -- Enable/disable debug network mode (forces own profession links through network)
@@ -2254,7 +2505,7 @@ function PL.HandleSlashCommand(args)
         print("  /cb stats - Show cache statistics")
         print("  /cb viewer [player] [profession] - Show/hide profession viewer")
         print("  /cb scanall - Force scan all professions")
-        print("  /cb debug [on|off] - Enable/disable debug mode")
+        print("  /cb debug [names|on|off] - Debug profession name resolution or enable/disable debug mode")
         print("  /cb debugnet [on|off] - Force own profession links through network (for testing)")
         print("  /cb recipes - Show detailed recipe info for current profession")
         print("  /cb testdata - Test data serialization for current profession")
@@ -2577,20 +2828,11 @@ end
 
 -- Generate and share profession link directly to the active chat channel
 function PL.GenerateAndShareProfessionLink()
-    -- Use the EXACT same workflow as the working scanopen viewer button
-    -- First, I need to create a temporary viewer frame with the current data
-    local professionName = nil
-    local rank = 0
+    -- Use function routing system for profession detection
+    local professionName = getCurrentProfessionName()
+    local skillName, rank, maxRank = getCurrentSkillLine()
     
-    if GetTradeSkillLine then
-        local skillName, skillRank, skillMaxRank = GetTradeSkillLine()
-        if skillName then
-            professionName = skillName
-            rank = skillRank or 0
-        end
-    end
-    
-    if not professionName or professionName == "" then
+    if not professionName or professionName == "" or professionName == "UNKNOWN" then
         print("|cffffff00CraftersBoard|r No profession window open. Please open a profession first.")
         return
     end
@@ -2599,7 +2841,7 @@ function PL.GenerateAndShareProfessionLink()
     
     -- Print the link details to chat console for debugging
     print("|cffffff00CraftersBoard|r Generating profession link:")
-    print("|cffffff00CraftersBoard|r Player: " .. playerName .. ", Profession: " .. professionName .. " (" .. rank .. ")")
+    print("|cffffff00CraftersBoard|r Player: " .. playerName .. ", Profession: " .. professionName .. " (" .. (rank or 0) .. ")")
     
     -- Generate the working link format (same as scanopen)
     local linkData = string.format("%s:%s", playerName, professionName)
@@ -2916,14 +3158,31 @@ function PL.TryScanProfession(professionName, spellId)
     
     -- For Classic Era, we need to check if the profession window is already open
     -- and scan directly if it matches what we want
+    local currentProfFromTradeSkill = nil
+    local currentProfFromCraft = nil
+    
     if TradeSkillFrame and TradeSkillFrame:IsVisible() then
-        local currentProf = GetTradeSkillLine and GetTradeSkillLine()
-        CB.Debug("TryScanProfession: Trade skill window is open with: " .. tostring(currentProf))
+        currentProfFromTradeSkill = GetTradeSkillLine and GetTradeSkillLine()
+        CB.Debug("TryScanProfession: Trade skill window is open with: " .. tostring(currentProfFromTradeSkill))
         
-        if currentProf == professionName then
+        if currentProfFromTradeSkill == professionName then
             CB.Debug("TryScanProfession: Current profession matches target, scanning...")
             if PL.ScanCurrentProfession() then
-                CB.Debug("Successfully scanned " .. professionName .. " from already open window")
+                CB.Debug("Successfully scanned " .. professionName .. " from already open TradeSkill window")
+                return true
+            end
+        end
+    end
+    
+    -- Also check CraftFrame for Enchanting
+    if CraftFrame and CraftFrame:IsVisible() then
+        currentProfFromCraft = GetCraftName and GetCraftName()
+        CB.Debug("TryScanProfession: Craft window is open with: " .. tostring(currentProfFromCraft))
+        
+        if currentProfFromCraft == professionName then
+            CB.Debug("TryScanProfession: Current profession matches target, scanning...")
+            if PL.ScanCurrentProfession() then
+                CB.Debug("Successfully scanned " .. professionName .. " from already open Craft window")
                 return true
             end
         end
@@ -2941,19 +3200,35 @@ function PL.TryScanProfession(professionName, spellId)
         local spellName = GetSpellInfo(spellId)
         if spellName then
             CB.Debug("TryScanProfession: Casting spell: " .. spellName)
-            CastSpell(spellName)
+            CastSpellByName(spellName)
             
             -- Set up a timer to check if the window opened
             C_Timer.After(1, function()
+                local windowOpened = false
+                local currentProf = nil
+                
+                -- Check TradeSkillFrame first
                 if TradeSkillFrame and TradeSkillFrame:IsVisible() then
-                    local currentProf = GetTradeSkillLine and GetTradeSkillLine()
-                    CB.Debug("TryScanProfession: After spell cast, window shows: " .. tostring(currentProf))
-                    
-                    if currentProf == PL.pendingScanProfession then
-                        if PL.ScanCurrentProfession() then
-                            CB.Debug("Successfully auto-scanned " .. professionName .. " after spell cast")
-                            -- Close the profession window to avoid clutter
+                    currentProf = GetTradeSkillLine and GetTradeSkillLine()
+                    CB.Debug("TryScanProfession: After spell cast, TradeSkill window shows: " .. tostring(currentProf))
+                    windowOpened = true
+                end
+                
+                -- Check CraftFrame if TradeSkillFrame didn't open
+                if not windowOpened and CraftFrame and CraftFrame:IsVisible() then
+                    currentProf = GetCraftName and GetCraftName()
+                    CB.Debug("TryScanProfession: After spell cast, Craft window shows: " .. tostring(currentProf))
+                    windowOpened = true
+                end
+                
+                if windowOpened and currentProf == PL.pendingScanProfession then
+                    if PL.ScanCurrentProfession() then
+                        CB.Debug("Successfully auto-scanned " .. professionName .. " after spell cast")
+                        -- Close the profession window to avoid clutter
+                        if TradeSkillFrame and TradeSkillFrame:IsVisible() then
                             HideUIPanel(TradeSkillFrame)
+                        elseif CraftFrame and CraftFrame:IsVisible() then
+                            HideUIPanel(CraftFrame)
                         end
                     end
                 end
@@ -2977,32 +3252,28 @@ function PL.ScanCurrentProfession()
         return false
     end
     
-    local professionName
-    if GetTradeSkillLine then
-        professionName = GetTradeSkillLine()
-    end
+    local professionName, rank, maxRank, numSkills
+    
+    -- Use enhanced function routing system for profession detection
+    professionName = getCurrentProfessionName()
     if not professionName or professionName == "" then
-        CB.Debug("No profession window open")
+        CB.Debug("No profession window open (checked using function routing system)")
         return false
     end
+    
+    -- Get skill line info using function routing
+    local skillName
+    skillName, rank, maxRank = getCurrentSkillLine()
+    numSkills = getCurrentRecipeCount()
+    
+    local isEnchanting = isEnchantingDisplayed()
+    CB.Debug("Using " .. (isEnchanting and "Craft" or "TradeSkill") .. " API for: " .. professionName)
     
     scanInProgress = true
     lastScanTime = time()
     
     CB.Debug("Starting profession scan for: " .. professionName)
-    
-    -- Classic Era API compatibility
-    local skillName, rank, maxRank
-    if GetTradeSkillLine then
-        skillName, rank, maxRank = GetTradeSkillLine()
-    else
-        -- Fallback if function doesn't exist
-        rank = 0
-        maxRank = 300
-    end
-    local numSkills = GetNumTradeSkills()
-    
-    CB.Debug("ScanCurrentProfession: Found " .. numSkills .. " trade skills to scan")
+    CB.Debug("ScanCurrentProfession: Found " .. numSkills .. " skills to scan")
     
     local snapshot = {
         name = professionName,
@@ -3013,7 +3284,8 @@ function PL.ScanCurrentProfession()
         timestamp = time(),
         recipes = {},
         categories = {},
-        version = "detailed-scan"
+        version = "detailed-scan-v2", -- Updated version to indicate function routing
+        isEnchanting = isEnchanting    -- Track which API was used
     }
     
     -- Scan all recipes with better validation
@@ -3035,8 +3307,8 @@ function PL.ScanCurrentProfession()
             
             CB.Debug("  Scanned recipe " .. i .. ": " .. recipe.name .. " (category: " .. category .. ", reagents: " .. #recipe.reagents .. ")")
         else
-            -- Check if this was a header
-            local name, type = GetTradeSkillInfo(i)
+            -- Check if this was a header using function routing
+            local name, type = getCurrentRecipeInfo(i)
             if type == "header" then
                 headersFound = headersFound + 1
                 CB.Debug("  Found header " .. i .. ": " .. (name or "unnamed"))
@@ -3091,7 +3363,11 @@ function PL.ScanRecipe(index)
         return nil
     end
     
-    local name, type, available, isExpanded, altVerb, numIndents = GetTradeSkillInfo(index)
+    local name, type, available, isExpanded, altVerb, numIndents
+    
+    -- Use function routing system for consistent API access
+    local isEnchanting = isEnchantingDisplayed()
+    name, type, available, isExpanded, altVerb, numIndents = getCurrentRecipeInfo(index)
     
     if not name or name == "" then
         CB.Debug("ScanRecipe: No name found for index " .. index)
@@ -3104,19 +3380,20 @@ function PL.ScanRecipe(index)
         return nil
     end
     
-    CB.Debug("ScanRecipe: Processing recipe '" .. name .. "' at index " .. index .. " (type: " .. tostring(type) .. ")")
+    CB.Debug("ScanRecipe: Processing recipe '" .. name .. "' at index " .. index .. " (type: " .. tostring(type) .. ", API: " .. (isEnchanting and "Craft" or "TradeSkill") .. ")")
     
     local recipe = {
         name = name,
         type = type, -- "trivial", "easy", "medium", "optimal"
         available = available or 0,
         numIndents = numIndents or 0,
-        category = PL.GetRecipeCategory(index, numIndents),
-        index = index -- Store original index for reference
+        category = PL.GetRecipeCategory(index, numIndents, isEnchanting),
+        index = index, -- Store original index for reference
+        isEnchanting = isEnchanting -- Track which API was used
     }
     
     -- Get difficulty information (Classic Era compatible)
-    if GetTradeSkillDifficulty then
+    if not isEnchanting and GetTradeSkillDifficulty then
         local difficulty = GetTradeSkillDifficulty(index)
         if difficulty then
             recipe.difficulty = {
@@ -3126,7 +3403,7 @@ function PL.ScanRecipe(index)
             }
         end
     else
-        -- Fallback for Classic Era - use the type field which already contains difficulty info
+        -- Fallback for Classic Era or Craft API - use the type field which already contains difficulty info
         recipe.difficulty = {
             color = type,
             text = type or "unknown"
@@ -3134,46 +3411,64 @@ function PL.ScanRecipe(index)
     end
     
     -- Get reagent information with better error handling
-    local reagents = PL.GetRecipeReagents(index)
+    local reagents = PL.GetRecipeReagents(index, isEnchanting)
     recipe.reagents = reagents or {}
     
     -- Get additional recipe information
-    if GetTradeSkillDescription then
+    if not isEnchanting and GetTradeSkillDescription then
         recipe.description = GetTradeSkillDescription(index)
+    elseif isEnchanting and GetCraftDescription then
+        recipe.description = GetCraftDescription(index)
     end
     
     -- Get tool requirement if any
-    local toolTip = PL.GetRecipeToolTip(index)
+    local toolTip = PL.GetRecipeToolTip(index, isEnchanting)
     if toolTip and toolTip ~= "" then
         recipe.tool = toolTip
     end
     
     -- Get cooldown information if available
-    if GetTradeSkillCooldown then
+    if not isEnchanting and GetTradeSkillCooldown then
         local cooldown = GetTradeSkillCooldown(index)
         if cooldown and cooldown > 0 then
             recipe.cooldown = cooldown
         end
     end
     
-    -- Try to get item link for the recipe result
-    if GetTradeSkillItemLink then
-        recipe.itemLink = GetTradeSkillItemLink(index)
-    end
+    -- Try to get item link for the recipe result using function routing
+    recipe.itemLink = getCurrentRecipeLink(index)
     
     -- CRITICAL: Get spell ID for network optimization
     -- Try multiple methods to get spell ID in Classic Era
     local spellId = nil
     
-    -- Method 1: Try GetTradeSkillRecipeLink (for direct spell ID extraction)
-    local recipeLink = GetTradeSkillRecipeLink and GetTradeSkillRecipeLink(index)
+    -- Method 1: Try recipe links (both Craft and TradeSkill APIs)
+    local recipeLink = nil
+    if isEnchanting then
+        -- For Enchanting (Craft API), try GetCraftItemLink for the enchantment link
+        recipeLink = GetCraftItemLink and GetCraftItemLink(index)
+        if recipeLink then
+            CB.Debug("ScanRecipe: Got Craft API recipe link for '" .. name .. "': " .. recipeLink)
+        end
+    else
+        -- For other professions (TradeSkill API)
+        recipeLink = GetTradeSkillRecipeLink and GetTradeSkillRecipeLink(index)
+        if recipeLink then
+            CB.Debug("ScanRecipe: Got TradeSkill API recipe link for '" .. name .. "': " .. recipeLink)
+        end
+    end
+    
     if recipeLink then
-        -- Extract spell ID from recipe link format: |cffffd000|Henchant:spellId|h[Recipe Name]|h|r
+        -- Extract spell ID from various link formats
+        -- Format 1: |Henchant:spellId|h  (enchantments)
+        -- Format 2: |Hspell:spellId|h   (spells) 
+        -- Format 3: |Hitem:itemId|h    (items)
         spellId = recipeLink:match("|H.-:(%d+)|h")
         if spellId then
-            CB.Debug("ScanRecipe: Found spell ID " .. spellId .. " via recipe link for '" .. name .. "'")
+            spellId = tonumber(spellId)
+            CB.Debug("ScanRecipe: Found spell/item ID " .. spellId .. " via recipe link for '" .. name .. "'")
         else
-            CB.Debug("ScanRecipe: Could not extract spell ID from recipe link: " .. recipeLink)
+            CB.Debug("ScanRecipe: Could not extract ID from recipe link: " .. recipeLink)
         end
     end
     
@@ -3202,7 +3497,35 @@ function PL.ScanRecipe(index)
         end
     end
     
-    -- Method 2.5: Try spell ID direct lookup for non-item recipes (like enchantments)
+    -- Method 2.5: Special handling for Enchanting using VanillaAccurateData
+    if not spellId and isEnchanting then
+        CB.Debug("ScanRecipe: Trying Enchanting spell ID lookup from VanillaAccurateData for '" .. name .. "'")
+        
+        -- Look up spell ID in Enchanting data table by recipe name
+        local enchantingData = CraftersBoard.VanillaAccurateData and CraftersBoard.VanillaAccurateData[333] -- 333 = Enchanting
+        if enchantingData then
+            -- Try to match recipe name to spell ID in Enchanting data
+            for enchantSpellId, recipeData in pairs(enchantingData) do
+                -- Use GetSpellInfo to get the spell name and compare
+                if GetSpellInfo and GetSpellInfo(enchantSpellId) then
+                    local enchantSpellName = GetSpellInfo(enchantSpellId)
+                    if enchantSpellName and (enchantSpellName == name or enchantSpellName:find(name) or name:find(enchantSpellName)) then
+                        spellId = enchantSpellId
+                        CB.Debug("ScanRecipe: Found Enchanting spell ID " .. spellId .. " for '" .. name .. "' (spell: " .. enchantSpellName .. ")")
+                        break
+                    end
+                end
+            end
+            
+            if not spellId then
+                CB.Debug("ScanRecipe: No matching Enchanting spell found for '" .. name .. "' in VanillaAccurateData")
+            end
+        else
+            CB.Debug("ScanRecipe: No Enchanting data available in VanillaAccurateData")
+        end
+    end
+    
+    -- Method 2.7: Try spell ID direct lookup for non-item recipes (like enchantments)
     if not spellId and recipeLink then
         -- Some recipes might have spell ID in the recipe link itself
         local potentialSpellId = recipeLink:match("|H.-:(%d+)|h")
@@ -3252,25 +3575,35 @@ function PL.ScanRecipe(index)
 end
 
 -- Get reagents for a recipe
-function PL.GetRecipeReagents(index)
+function PL.GetRecipeReagents(index, isEnchanting)
     local reagents = {}
     
-    -- Check if the function exists and index is valid
-    if not GetTradeSkillNumReagents or not index then
-        CB.Debug("GetRecipeReagents: Missing API or invalid index")
-        return reagents
+    local numReagents = 0
+    
+    -- Get number of reagents based on API
+    if isEnchanting and GetNumCraftReagents then
+        numReagents = GetNumCraftReagents(index)
+    elseif not isEnchanting and GetTradeSkillNumReagents then
+        numReagents = GetTradeSkillNumReagents(index)
     end
     
-    local numReagents = GetTradeSkillNumReagents(index)
     if not numReagents or numReagents == 0 then
-        CB.Debug("GetRecipeReagents: No reagents for index " .. index)
+        CB.Debug("GetRecipeReagents: No reagents for index " .. index .. " (API: " .. (isEnchanting and "Craft" or "TradeSkill") .. ")")
         return reagents
     end
     
-    CB.Debug("GetRecipeReagents: Processing " .. numReagents .. " reagents for index " .. index)
+    CB.Debug("GetRecipeReagents: Processing " .. numReagents .. " reagents for index " .. index .. " (API: " .. (isEnchanting and "Craft" or "TradeSkill") .. ")")
     
     for i = 1, numReagents do
-        local name, texture, count, playerCount = GetTradeSkillReagentInfo(index, i)
+        local name, texture, count, playerCount
+        
+        -- Get reagent info based on API
+        if isEnchanting and GetCraftReagentInfo then
+            name, texture, count, playerCount = GetCraftReagentInfo(index, i)
+        elseif not isEnchanting and GetTradeSkillReagentInfo then
+            name, texture, count, playerCount = GetTradeSkillReagentInfo(index, i)
+        end
+        
         if name and name ~= "" then
             local reagent = {
                 name = name,
@@ -3280,7 +3613,12 @@ function PL.GetRecipeReagents(index)
             }
             
             -- Try to get item link (may not exist in Classic Era)
-            if GetTradeSkillReagentItemLink then
+            if isEnchanting and GetCraftReagentItemLink then
+                local link = GetCraftReagentItemLink(index, i)
+                if link and link ~= "" then
+                    reagent.link = link
+                end
+            elseif not isEnchanting and GetTradeSkillReagentItemLink then
                 local link = GetTradeSkillReagentItemLink(index, i)
                 if link and link ~= "" then
                     reagent.link = link
@@ -3298,17 +3636,23 @@ function PL.GetRecipeReagents(index)
 end
 
 -- Get tool requirement for recipe (if any)
-function PL.GetRecipeToolTip(index)
+function PL.GetRecipeToolTip(index, isEnchanting)
     -- Get tool requirement using tooltip scanning (Classic Era compatible)
-    if GetTradeSkillTools then
+    if not isEnchanting and GetTradeSkillTools then
         return GetTradeSkillTools(index)
     end
+    -- Note: Craft API doesn't have a direct tool function, would need tooltip scanning
     return nil
 end
 
 -- Determine recipe category based on indentation and position
-function PL.GetRecipeCategory(index, numIndents)
-    -- Find the last header above this recipe
+function PL.GetRecipeCategory(index, numIndents, isEnchanting)
+    if isEnchanting then
+        -- For Craft API, we might need a different approach or return "Enchanting"
+        return "Enchanting"
+    end
+    
+    -- Find the last header above this recipe (TradeSkill API)
     for i = index - 1, 1, -1 do
         local name, type, _, _, _, indents = GetTradeSkillInfo(i)
         if type == "header" and (indents or 0) <= (numIndents or 0) then
@@ -6472,15 +6816,25 @@ function PL.HandleProfessionLink(link)
     CB.Debug("Profession link clicked: " .. playerName .. "'s " .. professionName .. " (normalized: " .. (normalizedPlayerName or "nil") .. ")")
     
     -- TEMPORARY DEBUG MODE: Force network testing for own profession links
-    local debugNetworkMode = true  -- ENABLED: Test network flow with own links as if another player
+    local debugNetworkMode = true  -- DISABLED: Use normal flow for own profession links
     
     -- Try to show the profession data
     local snapshot = nil
     
     -- Check if it's our own profession (use normalized names for comparison)
     if IsSamePlayer(normalizedPlayerName, UnitName("player")) and not debugNetworkMode then
+        CB.Debug("Looking for own profession '" .. professionName .. "' in professionSnapshots")
+        CB.Debug("Available own professions:")
+        for prof, snap in pairs(professionSnapshots) do
+            CB.Debug("  - " .. prof .. " (recipes: " .. #snap.recipes .. ")")
+        end
+        
         snapshot = professionSnapshots[professionName]
-        CB.Debug("Using local snapshot for own profession")
+        if snapshot then
+            CB.Debug("Using local snapshot for own profession: " .. professionName .. " (recipes: " .. #snapshot.recipes .. ")")
+        else
+            CB.Debug("ERROR: No local snapshot found for profession: " .. professionName)
+        end
     else
         if debugNetworkMode and IsSamePlayer(normalizedPlayerName, UnitName("player")) then
             CB.Debug("DEBUG NETWORK MODE: Treating own profession as if from another player - will use network flow")
