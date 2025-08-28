@@ -580,27 +580,34 @@ function createUI()
       customScrollBar:SetPoint("BOTTOMRIGHT", scrollContainer, "BOTTOMRIGHT", -4, 4)
       customScrollBar:SetWidth(12)
       
+      local theme = CB.getThemeColors()
+      CB.Debug("Creating main board scrollbar with theme colors:")
+      CB.Debug("  Track: " .. tostring(theme.secondary[1] * 0.5) .. ", " .. tostring(theme.secondary[2] * 0.5) .. ", " .. tostring(theme.secondary[3] * 0.5))
+      CB.Debug("  Thumb: " .. tostring(theme.accent[1]) .. ", " .. tostring(theme.accent[2]) .. ", " .. tostring(theme.accent[3]))
+      CB.Debug("  Hover: " .. tostring(theme.highlight[1]) .. ", " .. tostring(theme.highlight[2]) .. ", " .. tostring(theme.highlight[3]))
+      
       -- Minimal track background (very subtle)
       local track = customScrollBar:CreateTexture(nil, "BACKGROUND")
       track:SetAllPoints()
-      track:SetColorTexture(0.1, 0.1, 0.15, 0.3)  -- Very subtle dark track
+      local theme = CB.getThemeColors()
+      track:SetColorTexture(theme.secondary[1] * 0.5, theme.secondary[2] * 0.5, theme.secondary[3] * 0.5, 0.3)  -- Use theme secondary color
       
       -- Create minimal thumb
       local thumb = CreateFrame("Button", nil, customScrollBar)
       thumb:SetWidth(8)
       thumb:SetPoint("TOP", customScrollBar, "TOP", 0, 0)
       
-      -- Thumb texture (sleek minimal design)
+      -- Thumb texture (using theme accent color)
       local thumbTex = thumb:CreateTexture(nil, "ARTWORK")
       thumbTex:SetAllPoints()
-      thumbTex:SetColorTexture(0.4, 0.5, 0.7, 0.8)  -- Modern blue-gray
+      thumbTex:SetColorTexture(theme.accent[1], theme.accent[2], theme.accent[3], 0.8)  -- Use theme accent color
       
-      -- Thumb hover effect
+      -- Thumb hover effect (using theme highlight color)
       thumb:SetScript("OnEnter", function()
-        thumbTex:SetColorTexture(0.5, 0.6, 0.8, 0.9)
+        thumbTex:SetColorTexture(theme.highlight[1], theme.highlight[2], theme.highlight[3], 0.9)  -- Use theme highlight color
       end)
       thumb:SetScript("OnLeave", function()
-        thumbTex:SetColorTexture(0.4, 0.5, 0.7, 0.8)
+        thumbTex:SetColorTexture(theme.accent[1], theme.accent[2], theme.accent[3], 0.8)  -- Back to theme accent color
       end)
       
       -- Scroll functionality

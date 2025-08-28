@@ -4478,48 +4478,153 @@ function PL.CreateProfessionViewer()
     scrollChild:SetWidth(leftPanel:GetWidth() - 20)
     leftPanel:SetScrollChild(scrollChild)
     
-    -- Scroll bar for left panel - positioned relative to card container
-    local scrollBar = CreateFrame("Slider", nil, leftCardContainer)
-    scrollBar:SetPoint("TOPRIGHT", leftCardContainer, "TOPRIGHT", -6, -40)
-    scrollBar:SetPoint("BOTTOMRIGHT", leftCardContainer, "BOTTOMRIGHT", -6, 16)
-    scrollBar:SetWidth(16)
-    scrollBar:SetOrientation("VERTICAL")
-    scrollBar:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
-    scrollBar:SetMinMaxValues(0, 0)
-    scrollBar:SetValue(0)
+    -- Use the same minimal scrollbar design as the mail board frame
+    -- Create our custom minimal scroll bar
+    local customScrollBar = CreateFrame("Frame", nil, leftCardContainer)
+    customScrollBar:SetPoint("TOPRIGHT", leftCardContainer, "TOPRIGHT", -6, -40)
+    customScrollBar:SetPoint("BOTTOMRIGHT", leftCardContainer, "BOTTOMRIGHT", -6, 16)
+    customScrollBar:SetWidth(12)
+    customScrollBar:EnableMouse(true)  -- Enable mouse events on the track
     
-    -- Scroll bar background with card-appropriate styling
-    local scrollBg = scrollBar:CreateTexture(nil, "BACKGROUND")
-    scrollBg:SetAllPoints()
-    scrollBg:SetTexture("Interface\\Buttons\\UI-SliderBar-Background")
-    scrollBg:SetVertexColor(theme.secondary[1] * 0.6, theme.secondary[2] * 0.6, theme.secondary[3] * 0.6, 0.8)
+    CB.Debug("Creating profession viewer scrollbar with theme colors:")
+    CB.Debug("  Track: " .. tostring(theme.secondary[1] * 0.5) .. ", " .. tostring(theme.secondary[2] * 0.5) .. ", " .. tostring(theme.secondary[3] * 0.5))
+    CB.Debug("  Thumb: " .. tostring(theme.accent[1]) .. ", " .. tostring(theme.accent[2]) .. ", " .. tostring(theme.accent[3]))
+    CB.Debug("  Hover: " .. tostring(theme.highlight[1]) .. ", " .. tostring(theme.highlight[2]) .. ", " .. tostring(theme.highlight[3]))
     
-    scrollBar:SetScript("OnValueChanged", function(self, value)
-        leftPanel:SetVerticalScroll(value)
+    -- Minimal track background (very subtle)
+    local track = customScrollBar:CreateTexture(nil, "BACKGROUND")
+    track:SetAllPoints()
+    track:SetColorTexture(theme.secondary[1] * 0.5, theme.secondary[2] * 0.5, theme.secondary[3] * 0.5, 0.3)  -- Use theme secondary color
+    
+    -- Create minimal thumb
+    local thumb = CreateFrame("Button", nil, customScrollBar)
+    thumb:SetWidth(8)
+    thumb:SetPoint("TOP", customScrollBar, "TOP", 0, 0)
+    thumb:EnableMouse(true)  -- Ensure mouse events are enabled
+    thumb:RegisterForClicks("LeftButtonDown", "LeftButtonUp")  -- Register for click events
+    
+    -- Thumb texture (using theme accent color)
+    local thumbTex = thumb:CreateTexture(nil, "ARTWORK")
+    thumbTex:SetAllPoints()
+    thumbTex:SetColorTexture(theme.accent[1], theme.accent[2], theme.accent[3], 0.8)  -- Use theme accent color
+    
+    -- Thumb hover effect (using theme highlight color)
+    thumb:SetScript("OnEnter", function()
+        thumbTex:SetColorTexture(theme.highlight[1], theme.highlight[2], theme.highlight[3], 0.9)  -- Use theme highlight color
+    end)
+    thumb:SetScript("OnLeave", function()
+        thumbTex:SetColorTexture(theme.accent[1], theme.accent[2], theme.accent[3], 0.8)  -- Back to theme accent color
+    end)
+    
+    -- Scroll functionality
+    local function updateThumb()
+        local scrollRange = leftPanel:GetVerticalScrollRange()
+        local scrollValue = leftPanel:GetVerticalScroll()
+        local trackHeight = customScrollBar:GetHeight()
+        
+        if scrollRange > 0 then
+            local thumbHeight = math.max(20, trackHeight * (trackHeight / (trackHeight + scrollRange)))
+            local thumbPos = (scrollValue / scrollRange) * (trackHeight - thumbHeight)
+            
+            thumb:SetHeight(thumbHeight)
+            thumb:ClearAllPoints()
+            thumb:SetPoint("TOP", customScrollBar, "TOP", 0, -thumbPos)
+            customScrollBar:Show()
+        else
+            customScrollBar:Hide()
+        end
+    end
+    
+    -- Dragging functionality
+    local isDragging = false
+    local startY, startScroll
+    
+    thumb:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" then
+            isDragging = true
+            startY = select(2, GetCursorPosition())
+            startScroll = leftPanel:GetVerticalScroll()
+            self:SetScript("OnUpdate", function()
+                if isDragging then
+                    local currentY = select(2, GetCursorPosition())
+                    local deltaY = (startY - currentY) / self:GetEffectiveScale()
+                    local scrollRange = leftPanel:GetVerticalScrollRange()
+                    local trackHeight = customScrollBar:GetHeight()
+                    local thumbHeight = thumb:GetHeight()
+                    
+                    if scrollRange > 0 and trackHeight > thumbHeight then
+                        local scrollPercent = deltaY / (trackHeight - thumbHeight)
+                        local newScroll = math.max(0, math.min(scrollRange, startScroll + (scrollPercent * scrollRange)))
+                        leftPanel:SetVerticalScroll(newScroll)
+                        updateThumb()
+                    end
+                end
+            end)
+        end
+    end)
+    
+    thumb:SetScript("OnMouseUp", function(self, button)
+        if button == "LeftButton" and isDragging then
+            isDragging = false
+            self:SetScript("OnUpdate", nil)
+        end
+    end)
+    
+    -- Global mouse up handler to catch mouse up events outside the thumb
+    customScrollBar:SetScript("OnMouseUp", function(self, button)
+        if button == "LeftButton" and isDragging then
+            isDragging = false
+            thumb:SetScript("OnUpdate", nil)
+        end
+    end)
+    
+    -- Track click to scroll (but not when clicking on thumb)
+    customScrollBar:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" and not isDragging then
+            local y = select(2, GetCursorPosition()) / self:GetEffectiveScale()
+            local trackTop = self:GetTop()
+            local thumbTop = thumb:GetTop()
+            local thumbBottom = thumb:GetBottom()
+            
+            -- Only handle clicks that are not on the thumb
+            if y > thumbTop then
+                -- Click above thumb - scroll up
+                leftPanel:SetVerticalScroll(math.max(0, leftPanel:GetVerticalScroll() - 100))
+                updateThumb()
+            elseif y < thumbBottom then
+                -- Click below thumb - scroll down
+                leftPanel:SetVerticalScroll(math.min(leftPanel:GetVerticalScrollRange(), leftPanel:GetVerticalScroll() + 100))
+                updateThumb()
+            end
+        end
     end)
     
     -- Mouse wheel scrolling for left panel
     leftPanel:EnableMouseWheel(true)
     leftPanel:SetScript("OnMouseWheel", function(self, delta)
-        local current = self:GetVerticalScroll()
-        local maxScroll = self:GetVerticalScrollRange()
-        local newScroll = current - (delta * 30)
-        
-        if newScroll < 0 then
-            newScroll = 0
-        elseif newScroll > maxScroll then
-            newScroll = maxScroll
-        end
-        
-        scrollBar:SetValue(newScroll)
+        local newScroll = self:GetVerticalScroll() - (delta * 40)
+        newScroll = math.max(0, math.min(self:GetVerticalScrollRange(), newScroll))
+        self:SetVerticalScroll(newScroll)
+        updateThumb()
     end)
+    
+    -- Update thumb when content changes
+    leftPanel:SetScript("OnScrollRangeChanged", updateThumb)
+    leftPanel:SetScript("OnVerticalScroll", updateThumb)
+    
+    -- Store reference for updates
+    leftPanel.customScrollBar = customScrollBar
+    leftPanel.updateThumb = updateThumb
     
     -- Update scroll range function
     local function UpdateScrollRange()
         local contentHeight = scrollChild:GetHeight()
         local frameHeight = leftPanel:GetHeight()
         local maxScroll = math.max(0, contentHeight - frameHeight)
-        scrollBar:SetMinMaxValues(0, maxScroll)
+        -- Update the custom scrollbar thumb when content changes
+        if updateThumb then
+            updateThumb()
+        end
     end
     
     scrollChild:SetScript("OnSizeChanged", UpdateScrollRange)
