@@ -304,7 +304,7 @@ function UI.AcquireRow(parent)
         b.starTextureMode = "custom"
         b.filledTexturePath = "Interface\\AddOns\\CraftersBoard\\Textures\\star_filled"
         b.emptyTexturePath = "Interface\\AddOns\\CraftersBoard\\Textures\\star_empty"
-        -- CB.Debug("Using custom TGA star textures")
+        CB.Debug("Using custom TGA star textures")
       else
         -- Second try: Better built-in WoW textures for stars
         -- Try a few different built-in textures that should work in Classic
@@ -328,7 +328,7 @@ function UI.AcquireRow(parent)
             end
             b.filledTexturePath = texPath
             b.emptyTexturePath = texPath
-            -- CB.Debug("Using built-in texture: " .. texPath)
+            CB.Debug("Using built-in texture: " .. texPath)
             break
           end
         end
@@ -340,7 +340,7 @@ function UI.AcquireRow(parent)
           b.starText:SetPoint("CENTER")
           b.starText:SetText("★")
           b.starTextureMode = "text"
-          -- CB.Debug("Using text symbols for stars")
+          CB.Debug("Using text symbols for stars")
         end
       end
     end
@@ -719,10 +719,10 @@ function CB.togglePlayerFavorite(playerName)
   -- Toggle favorite status
   if CRAFTERSBOARD_DB.favorites[cleanName] then
     CRAFTERSBOARD_DB.favorites[cleanName] = nil
-    -- CB.Debug("Removed " .. cleanName .. " from favorites")
+    CB.Debug("Removed " .. cleanName .. " from favorites")
   else
     CRAFTERSBOARD_DB.favorites[cleanName] = true
-    -- CB.Debug("Added " .. cleanName .. " to favorites")
+    CB.Debug("Added " .. cleanName .. " to favorites")
   end
   
   -- Refresh UI if visible

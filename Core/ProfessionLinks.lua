@@ -90,7 +90,7 @@ local ADDON_MESSAGE_PREFIX = "CBPROF"
 local PROTOCOL_VERSION = 1
 local LINK_FORMAT = "|Hcraftersboard:%s:%d:%d:%d|h[%s's %s (%d)]|h"
 
-local MAX_ADDON_MESSAGE_SIZE = 200
+local MAX_ADDON_MESSAGE_SIZE = 240  -- Increased from 200 to 240 for better efficiency
 local MAX_CHUNKS_PER_REQUEST = 100
 local CHUNK_SEND_DELAY = 0.05
 local COMPRESSION_ENABLED = true
@@ -204,7 +204,7 @@ function PL.GetSpellIdFromRecipeMasterData(recipeName)
                     -- Get the actual item name from WoW API
                     local itemName = GetItemInfo(recipe.itemId)
                     if itemName and itemName == recipeName then
-                        -- CB.Debug("GetSpellIdFromRecipeMasterData: Found item match - " .. recipeName .. " → spellId " .. recipe.spellId .. " (itemId " .. recipe.itemId .. ")")
+                        CB.Debug("GetSpellIdFromRecipeMasterData: Found item match - " .. recipeName .. " → spellId " .. recipe.spellId .. " (itemId " .. recipe.itemId .. ")")
                         return recipe.spellId
                     end
                 end
@@ -214,7 +214,7 @@ function PL.GetSpellIdFromRecipeMasterData(recipeName)
                     -- The key might be a spell ID, check if spell name matches recipe name
                     local spellName = GetSpellInfo and GetSpellInfo(keyId)
                     if spellName and spellName == recipeName then
-                        -- CB.Debug("GetSpellIdFromRecipeMasterData: Found spell match - " .. recipeName .. " → spellId " .. keyId)
+                        CB.Debug("GetSpellIdFromRecipeMasterData: Found spell match - " .. recipeName .. " → spellId " .. keyId)
                         return keyId
                     end
                 end
@@ -226,14 +226,14 @@ function PL.GetSpellIdFromRecipeMasterData(recipeName)
     if CraftersBoard_VanillaData and CraftersBoard_VanillaData.SPELL_TO_RECIPE then
         for spellId, itemName in pairs(CraftersBoard_VanillaData.SPELL_TO_RECIPE) do
             if itemName == recipeName then
-                -- CB.Debug("GetSpellIdFromRecipeMasterData: Found in legacy layer - " .. recipeName .. " → spellId " .. spellId)
+                CB.Debug("GetSpellIdFromRecipeMasterData: Found in legacy layer - " .. recipeName .. " → spellId " .. spellId)
                 return spellId
             end
         end
     end
     
     -- Only print debug for missing recipes if debug is enabled
-    -- CB.Debug("GetSpellIdFromRecipeMasterData: No match found for '" .. recipeName .. "'")
+    CB.Debug("GetSpellIdFromRecipeMasterData: No match found for '" .. recipeName .. "'")
     return nil
 end
 
@@ -249,11 +249,11 @@ function PL.GetSpellIdFromItemId(itemId)
             if recipe then
                 -- Check if recipe has a spellId field
                 if recipe.spellId then
-                    -- CB.Debug("GetSpellIdFromItemId: Direct match - itemId " .. itemId .. " → spellId " .. recipe.spellId .. " (profession " .. professionId .. ")")
+                    CB.Debug("GetSpellIdFromItemId: Direct match - itemId " .. itemId .. " → spellId " .. recipe.spellId .. " (profession " .. professionId .. ")")
                     return recipe.spellId
                 -- For recipes without spellId (like enchantments), the key might be the spell ID
                 elseif not recipe.itemId and type(itemId) == "number" then
-                    -- CB.Debug("GetSpellIdFromItemId: Key-as-spellId match - using key " .. itemId .. " as spell ID (profession " .. professionId .. ")")
+                    CB.Debug("GetSpellIdFromItemId: Key-as-spellId match - using key " .. itemId .. " as spell ID (profession " .. professionId .. ")")
                     return itemId
                 end
             end
@@ -261,7 +261,7 @@ function PL.GetSpellIdFromItemId(itemId)
     end
     
     -- Only print debug for missing items if debug is enabled
-    -- CB.Debug("GetSpellIdFromItemId: No recipe found for itemId " .. itemId)
+    CB.Debug("GetSpellIdFromItemId: No recipe found for itemId " .. itemId)
     return nil
 end
 
@@ -277,7 +277,7 @@ function PL.GetSpellIdBySpellKey(spellId)
             if recipe then
                 -- If this is a non-item recipe (no itemId), the key is likely the spell ID
                 if not recipe.itemId then
-                    -- CB.Debug("GetSpellIdBySpellKey: Found non-item recipe - spellId " .. spellId .. " (profession " .. professionId .. ")")
+                    CB.Debug("GetSpellIdBySpellKey: Found non-item recipe - spellId " .. spellId .. " (profession " .. professionId .. ")")
                     return spellId
                 end
             end
@@ -616,7 +616,7 @@ function PL.GetSpellIdFromRecipeName(recipeName)
         end
     end
     
-    -- CB.Debug("GetSpellIdFromRecipeName: No spell ID found for recipe '" .. recipeName .. "'")
+    CB.Debug("GetSpellIdFromRecipeName: No spell ID found for recipe '" .. recipeName .. "'")
     return nil
 end
 
@@ -1119,13 +1119,36 @@ function PL.HandleProfessionRequest(data, sender)
         local optimizedPayload = PL.SerializeOptimizedData(snapshot.optimizedData)
         if optimizedPayload then
             local compressedData = PL.SimpleCompress(optimizedPayload)
-            if compressedData and #compressedData < (MAX_ADDON_MESSAGE_SIZE * 3) then -- Allow up to 3 chunks for optimized data
+            if compressedData then
                 CB.Debug("Sending optimized data (" .. #compressedData .. " bytes compressed)")
-                local response = string.format("OPTIMIZED_DATA:%s:%s", reqId, compressedData)
-                SendAddonMessageCompat(ADDON_MESSAGE_PREFIX, response, "WHISPER", sender)
-                return
+                
+                -- Check if data fits in a single message
+                local singleMessage = string.format("OPTIMIZED_DATA:%s:%s", reqId, compressedData)
+                if #singleMessage <= MAX_ADDON_MESSAGE_SIZE then
+                    CB.Debug("Optimized data fits in single message")
+                    SendAddonMessageCompat(ADDON_MESSAGE_PREFIX, singleMessage, "WHISPER", sender)
+                    return
+                else
+                    -- Use chunking for large optimized data
+                    CB.Debug("Optimized data too large (" .. #singleMessage .. " bytes), using chunking")
+                    
+                    -- Send as chunked OPTIMIZED_DATA messages
+                    local chunks = PL.CreateChunks(compressedData, MAX_ADDON_MESSAGE_SIZE - 30) -- Leave room for OPTIMIZED_DATA prefix
+                    
+                    if #chunks > 20 then -- Reasonable chunk limit for optimized data
+                        CB.Debug("Optimized data requires too many chunks (" .. #chunks .. "), falling back to legacy protocol")
+                    else
+                        CB.Debug("Sending optimized data in " .. #chunks .. " chunks")
+                        for i, chunk in ipairs(chunks) do
+                            local chunkMessage = string.format("OPTIMIZED_DATA:%s:%d/%d:%s", reqId, i, #chunks, chunk)
+                            SendAddonMessageCompat(ADDON_MESSAGE_PREFIX, chunkMessage, "WHISPER", sender)
+                            CB.Debug("Sent optimized chunk " .. i .. "/" .. #chunks .. " (" .. #chunkMessage .. " bytes)")
+                        end
+                        return
+                    end
+                end
             else
-                CB.Debug("Optimized data still too large, falling back to legacy protocol")
+                CB.Debug("Failed to compress optimized data, falling back to legacy protocol")
             end
         else
             CB.Debug("Failed to serialize optimized data, falling back to legacy protocol")
@@ -1294,7 +1317,7 @@ function PL.HandleProfessionData(data, sender)
     end
     
     -- Handle chunked data
-    PL.ReceiveChunk(sender, reqId, chunk, encodedData)
+    PL.ReceiveChunk(sender, reqId, chunk, encodedData, "PROFESSION_DATA")
 end
 
 -- Handle optimized profession data (spell IDs)
@@ -1302,16 +1325,30 @@ function PL.HandleOptimizedData(data, sender)
     CB.Debug("Handling optimized data from " .. sender)
     CB.Debug("Raw data: " .. tostring(data))
     
-    -- Parse reqId:compressedData format
-    local reqId, compressedData = data:match("^([^:]+):(.+)")
+    -- Check if this is chunked data (format: reqId:chunkIndex/totalChunks:chunkData)
+    local reqId, chunkInfo, chunkData = data:match("^([^:]+):([^:]+):(.+)")
+    if reqId and chunkInfo and chunkData and string.find(chunkInfo, "/") then
+        CB.Debug("Received chunked optimized data - reqId: " .. reqId .. ", chunk: " .. chunkInfo)
+        -- Use the existing chunk receiving mechanism
+        PL.ReceiveChunk(sender, reqId, chunkInfo, chunkData, "OPTIMIZED_DATA")
+        return
+    end
+    
+    -- Handle single message format (reqId:compressedData)
+    reqId, compressedData = data:match("^([^:]+):(.+)")
     if not reqId or not compressedData then
-        CB.Debug("Invalid optimized data format - expected reqId:compressedData")
+        CB.Debug("Invalid optimized data format - expected reqId:compressedData or reqId:chunk/total:data")
         return
     end
     
     CB.Debug("Extracted reqId: " .. reqId)
     CB.Debug("Compressed data length: " .. #compressedData)
     
+    PL.ProcessOptimizedData(sender, reqId, compressedData)
+end
+
+-- Process decompressed optimized data (extracted to separate function for reuse)
+function PL.ProcessOptimizedData(sender, reqId, compressedData)
     local decompressed = PL.SimpleDecompress(compressedData)
     if not decompressed then
         CB.Debug("Failed to decompress optimized data")
@@ -1403,12 +1440,12 @@ function PL.HandleOptimizedData(data, sender)
     -- Show first few resolved recipes for verification
     for i = 1, math.min(3, #resolvedRecipes) do
         local r = resolvedRecipes[i]
-        -- CB.Debug("  Recipe " .. i .. ": " .. (r.name or "nil") .. " (ID: " .. tostring(r.spellID) .. ")")
+        CB.Debug("  Recipe " .. i .. ": " .. (r.name or "nil") .. " (ID: " .. tostring(r.spellID) .. ")")
     end
     
     -- Show first few missing spell IDs
     for i = 1, math.min(3, #missingSpells) do
-        -- CB.Debug("  Missing: " .. tostring(missingSpells[i]))
+        CB.Debug("  Missing: " .. tostring(missingSpells[i]))
     end
     
     -- Use profession name from ID lookup
@@ -1819,6 +1856,7 @@ function PL.RequestProfessionData(targetPlayer, profId, showInViewer)
         end
         
         -- Set up timeout for the request
+        -- TODO : Need further investigation
         C_Timer.After(30, function()
             if pendingRequests[reqId] then
                 CB.Debug("Request " .. reqId .. " timed out")
@@ -1840,11 +1878,11 @@ function PL.RequestProfessionData(targetPlayer, profId, showInViewer)
                 end
                 
                 pendingRequests[reqId] = nil
-                print("|cffffff00CraftersBoard|r " .. timeoutMessage .. ": " .. targetPlayer)
+                -- print("|cffffff00CraftersBoard|r " .. timeoutMessage .. ": " .. targetPlayer)
                 
                 -- Suggest troubleshooting steps
                 if not playerCapabilities[targetPlayer] then
-                    print("|cffffff00CraftersBoard|r Make sure " .. targetPlayer .. " has CraftersBoard addon installed and is online")
+                    -- print("|cffffff00CraftersBoard|r Make sure " .. targetPlayer .. " has CraftersBoard addon installed and is online")
                 end
             end
         end)
@@ -2560,17 +2598,17 @@ function PL.GenerateAndShareProfessionLink()
     local playerName = UnitName("player") or "Unknown"
     
     -- Print the link details to chat console for debugging
-    print("|cffffff00CraftersBoard|r Generating profession link using scanopen workflow:")
+    print("|cffffff00CraftersBoard|r Generating profession link:")
     print("|cffffff00CraftersBoard|r Player: " .. playerName .. ", Profession: " .. professionName .. " (" .. rank .. ")")
     
     -- Generate the working link format (same as scanopen)
     local linkData = string.format("%s:%s", playerName, professionName)
-    local linkText = string.format("[%s's %s]", playerName, professionName)
+    local linkText = string.format("|cffffd700[%s's %s]|r", playerName, professionName)
     local workingLink = string.format("|HcraftersProfession:%s|h%s|h", linkData, linkText)
     
     -- Print the generated link to chat console
-    print("|cffffff00CraftersBoard|r Generated link:")
-    print(workingLink)
+    print("|cffffff00CraftersBoard|r : " .. workingLink)
+    -- print(workingLink)
     CB.Debug("Safe format: [[" .. playerName .. "'s " .. professionName .. "]]")
     
     -- Check if any chat input is open and paste the link there
@@ -2586,7 +2624,7 @@ function PL.GenerateAndShareProfessionLink()
     end
     
     -- No chat input is open, show the dialog as fallback
-    print("|cffffff00CraftersBoard|r No active chat input - showing link dialog instead")
+    -- print("|cffffff00CraftersBoard|r No active chat input - showing link dialog instead")
     
     -- Create a mock viewer frame with the required data (same as the working scanopen viewer)
     local mockFrame = {
@@ -3793,7 +3831,14 @@ function PL.SendChunkedData(targetPlayer, reqId, data)
 end
 
 -- Receive and reassemble chunked data
-function PL.ReceiveChunk(sender, reqId, chunkInfo, chunkData)
+function PL.ReceiveChunk(sender, reqId, chunkInfo, chunkData, messageType)
+    CB.Debug("ReceiveChunk called:")
+    CB.Debug("  sender: " .. tostring(sender))
+    CB.Debug("  reqId: " .. tostring(reqId))
+    CB.Debug("  chunkInfo: " .. tostring(chunkInfo))
+    CB.Debug("  chunkData size: " .. string.len(chunkData) .. " bytes")
+    CB.Debug("  messageType: " .. tostring(messageType or "legacy"))
+    
     local current, total = chunkInfo:match("(%d+)/(%d+)")
     current = tonumber(current)
     total = tonumber(total)
@@ -3843,8 +3888,18 @@ function PL.ReceiveChunk(sender, reqId, chunkInfo, chunkData)
         -- Clean up
         incomingChunks[reqId] = nil
         
-        -- Process the complete data
-        PL.ProcessReceivedProfessionData(sender, reqId, fullData)
+        -- Check if this is optimized data that was chunked
+        local isOptimizedChunk = (messageType == "OPTIMIZED_DATA")
+        
+        if isOptimizedChunk then
+            CB.Debug("Processing chunked optimized data")
+            -- Process optimized data directly with the reassembled compressed data
+            PL.ProcessOptimizedData(sender, reqId, fullData)
+        else
+            CB.Debug("Processing chunked legacy data")
+            -- Process as legacy profession data
+            PL.ProcessReceivedProfessionData(sender, reqId, fullData)
+        end
         return true
     end
     
@@ -5466,10 +5521,7 @@ end
 -- Show error in the profession viewer
 function PL.ShowViewerError(playerName, professionName, errorMessage)
     CB.Debug("ShowViewerError: " .. playerName .. "'s " .. professionName .. " - " .. errorMessage)
-    print("|cffffff00CraftersBoard|r Error viewing " .. playerName .. "'s " .. professionName .. ": " .. errorMessage)
-    
-    -- You could also show this in a UI frame if you have one
-    -- For now, just print to chat
+    -- print("|cffffff00CraftersBoard|r Error viewing " .. playerName .. "'s " .. professionName .. ": " .. errorMessage)
 end
 
 -- Show profession data function - this displays profession data using the unified view

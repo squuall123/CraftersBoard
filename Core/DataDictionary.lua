@@ -125,7 +125,7 @@ end
 function DD.CompressProfessionData(snapshot)
     if not snapshot or not snapshot.recipes then return nil end
     
-    -- CB.Debug("Compressing profession data using dictionary approach")
+    CB.Debug("Compressing profession data using dictionary approach")
     
     local compressed = {
         n = snapshot.name,           -- Keep name as-is (short anyway)
@@ -189,7 +189,7 @@ function DD.CompressProfessionData(snapshot)
         end
     end
     
-    -- CB.Debug("Dictionary compression: " .. compressedCount .. " recipes compressed, " .. uncompressedCount .. " fallback")
+    CB.Debug("Dictionary compression: " .. compressedCount .. " recipes compressed, " .. uncompressedCount .. " fallback")
     return compressed
 end
 
@@ -197,7 +197,7 @@ end
 function DD.DecompressProfessionData(compressed)
     if not compressed or not compressed.rc then return nil end
     
-    -- CB.Debug("Decompressing profession data using dictionary approach")
+    CB.Debug("Decompressing profession data using dictionary approach")
     
     local snapshot = {
         name = compressed.n,
@@ -215,7 +215,7 @@ function DD.DecompressProfessionData(compressed)
         if compactRecipe.id then
             recipe.name = DD.SPELL_TO_RECIPE[compactRecipe.id]
             if not recipe.name then
-                -- CB.Debug("Warning: Unknown spell ID " .. compactRecipe.id .. ", skipping recipe")
+                CB.Debug("Warning: Unknown spell ID " .. compactRecipe.id .. ", skipping recipe")
                 -- Skip this recipe instead of using goto
             else
                 -- Process the recipe normally
@@ -271,7 +271,7 @@ function DD.DecompressProfessionData(compressed)
         end
     end
     
-    -- CB.Debug("Decompressed " .. #snapshot.recipes .. " recipes from dictionary data")
+    CB.Debug("Decompressed " .. #snapshot.recipes .. " recipes from dictionary data")
     return snapshot
 end
 
@@ -298,7 +298,7 @@ function DD.CalculateCompressionRatio(original, compressed)
     if originalSize == 0 then return 0 end
     
     local ratio = (originalSize - compressedSize) / originalSize * 100
-    -- CB.Debug("Compression ratio: " .. string.format("%.1f", ratio) .. "% (from " .. originalSize .. " to " .. compressedSize .. " elements)")
+    CB.Debug("Compression ratio: " .. string.format("%.1f", ratio) .. "% (from " .. originalSize .. " to " .. compressedSize .. " elements)")
     
     return ratio
 end
@@ -355,7 +355,7 @@ function DD.FilterSnapshotByProfession(snapshot, professionId)
     
     local professionRecipes = DD.GetRecipesByProfession(professionId)
     if not professionRecipes then
-        -- CB.Debug("No recipes found for profession ID: " .. tostring(professionId))
+        CB.Debug("No recipes found for profession ID: " .. tostring(professionId))
         return filtered
     end
     
@@ -373,7 +373,7 @@ function DD.FilterSnapshotByProfession(snapshot, professionId)
         end
     end
     
-    -- CB.Debug("Filtered " .. #filtered.recipes .. " recipes for profession: " .. DD.GetProfessionName(professionId))
+    CB.Debug("Filtered " .. #filtered.recipes .. " recipes for profession: " .. DD.GetProfessionName(professionId))
     return filtered
 end
 
@@ -386,4 +386,4 @@ local function getTableCount(t)
     return count
 end
 
--- CB.Debug("DataDictionary module loaded with " .. getTableCount(DD.SPELL_TO_RECIPE) .. " spell mappings")
+CB.Debug("DataDictionary module loaded with " .. getTableCount(DD.SPELL_TO_RECIPE) .. " spell mappings")
