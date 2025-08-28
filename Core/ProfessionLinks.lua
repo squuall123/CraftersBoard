@@ -4323,8 +4323,6 @@ function PL.CreateProfessionViewer()
     titleBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -12)
     titleBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -12)
     
-    -- Title text
-    frame.TitleText = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     -- Create profession icon for title bar
     if not frame.ProfessionIcon then
         frame.ProfessionIcon = titleBar:CreateTexture(nil, "ARTWORK")
@@ -4332,10 +4330,30 @@ function PL.CreateProfessionViewer()
         frame.ProfessionIcon:SetPoint("LEFT", titleBar, "LEFT", 8, 0)
     end
     
-    -- Update title text position to make room for icon
+    -- Title text
+    frame.TitleText = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     frame.TitleText:SetPoint("LEFT", frame.ProfessionIcon, "RIGHT", 8, 0)
     frame.TitleText:SetText("Profession Viewer")
     frame.TitleText:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
+    
+    -- Create compact skill level bar in title bar
+    frame.TitleSkillBar = CreateFrame("StatusBar", nil, titleBar)
+    frame.TitleSkillBar:SetSize(140, 12)  -- Slightly bigger size for better visibility
+    frame.TitleSkillBar:SetPoint("LEFT", frame.TitleText, "RIGHT", 15, 0)
+    frame.TitleSkillBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    frame.TitleSkillBar:SetStatusBarColor(theme.accent[1], theme.accent[2], theme.accent[3], 1)  -- Will be updated with level color
+    frame.TitleSkillBar:Hide()  -- Initially hidden until we have data
+    
+    -- Skill bar background
+    local skillBg = frame.TitleSkillBar:CreateTexture(nil, "BACKGROUND")
+    skillBg:SetAllPoints()
+    skillBg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    skillBg:SetVertexColor(theme.secondary[1], theme.secondary[2], theme.secondary[3], 0.8)
+    
+    -- Skill level text overlay
+    frame.TitleSkillText = frame.TitleSkillBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")  -- Slightly larger font
+    frame.TitleSkillText:SetPoint("CENTER", frame.TitleSkillBar, "CENTER", 0, 0)
+    frame.TitleSkillText:SetTextColor(1, 1, 1, 1)  -- White text for visibility
     
     -- Close button (standard WoW style)
     frame.CloseButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
@@ -4344,12 +4362,36 @@ function PL.CreateProfessionViewer()
         frame:Hide()
     end)
     
-    -- Category Filter Dropdown (proper dropdown UI component)
-    local dropdownFrame = CreateFrame("Frame", nil, titleBar, "UIDropDownMenuTemplate")
-    dropdownFrame:SetPoint("RIGHT", frame.CloseButton, "LEFT", -10, 0)
+    -- Single content area like original profession window (no tabs)
+    -- Split into left panel (recipes) and right panel (recipe details) with card styling
     
-    -- Apply theme styling to dropdown
-    local theme = CB.getThemeColors()
+    -- Create recipe list card container (left half)
+    local leftCardContainer = CreateFrame("Frame", nil, frame)
+    leftCardContainer:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 12, -8)
+    leftCardContainer:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 12)
+    leftCardContainer:SetWidth((700 - 32) / 2)  -- Half width minus padding: (frame_width - total_padding) / 2
+    
+    -- Apply card backdrop styling to left container
+    CB.UI.SetBackdropCompat(leftCardContainer, {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 12,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    CB.UI.SetBackdropColorCompat(leftCardContainer, theme.secondary[1] * 0.3, theme.secondary[2] * 0.3, theme.secondary[3] * 0.3, 0.95)
+    CB.UI.SetBackdropBorderColorCompat(leftCardContainer, theme.border[1], theme.border[2], theme.border[3], 0.8)
+    
+    -- Create recipe list header
+    local leftCardHeader = leftCardContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    leftCardHeader:SetPoint("TOPLEFT", leftCardContainer, "TOPLEFT", 12, -12)
+    leftCardHeader:SetText("Recipe List")
+    leftCardHeader:SetTextColor(theme.accent[1], theme.accent[2], theme.accent[3])
+    
+    -- Category Filter Dropdown (moved from title bar to recipe card)
+    local dropdownFrame = CreateFrame("Frame", nil, leftCardContainer, "UIDropDownMenuTemplate")
+    dropdownFrame:SetPoint("TOPRIGHT", leftCardContainer, "TOPRIGHT", -8, -8)
     
     -- Store reference to filter elements
     frame.categoryFilter = {
@@ -4395,42 +4437,16 @@ function PL.CreateProfessionViewer()
     
     UIDropDownMenu_Initialize(dropdownFrame, InitializeDropdown)
     
-    -- Single content area like original profession window (no tabs)
-    -- Split into left panel (recipes) and right panel (recipe details) with card styling
-    
-    -- Create recipe list card container
-    local leftCardContainer = CreateFrame("Frame", nil, frame)
-    leftCardContainer:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 12, -8)
-    leftCardContainer:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 12)
-    leftCardContainer:SetWidth(360)  -- Increased width for card padding
-    
-    -- Apply card backdrop styling to left container
-    CB.UI.SetBackdropCompat(leftCardContainer, {
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true,
-        tileSize = 16,
-        edgeSize = 12,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 }
-    })
-    CB.UI.SetBackdropColorCompat(leftCardContainer, theme.secondary[1] * 0.3, theme.secondary[2] * 0.3, theme.secondary[3] * 0.3, 0.95)
-    CB.UI.SetBackdropBorderColorCompat(leftCardContainer, theme.border[1], theme.border[2], theme.border[3], 0.8)
-    
-    -- Create recipe list header
-    local leftCardHeader = leftCardContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    leftCardHeader:SetPoint("TOPLEFT", leftCardContainer, "TOPLEFT", 12, -12)
-    leftCardHeader:SetText("Recipe List")
-    leftCardHeader:SetTextColor(theme.accent[1], theme.accent[2], theme.accent[3])
-    
-    -- Create scroll frame inside the card container with proper padding
+    -- Create scroll frame inside the card container with proper padding (adjusted for dropdown)
     local leftPanel = CreateFrame("ScrollFrame", nil, leftCardContainer)
-    leftPanel:SetPoint("TOPLEFT", leftCardContainer, "TOPLEFT", 8, -35)
+    leftPanel:SetPoint("TOPLEFT", leftCardContainer, "TOPLEFT", 8, -45)  -- Increased padding from -35 to -45 for dropdown space
     leftPanel:SetPoint("BOTTOMRIGHT", leftCardContainer, "BOTTOMRIGHT", -8, 8)
     
-    -- Create recipe details card container
+    -- Create recipe details card container (right half)
     local rightCardContainer = CreateFrame("Frame", nil, frame)
     rightCardContainer:SetPoint("TOPLEFT", leftCardContainer, "TOPRIGHT", 8, 0)
     rightCardContainer:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 12)
+    rightCardContainer:SetWidth((700 - 32) / 2)  -- Half width minus padding: (frame_width - total_padding) / 2
     
     -- Apply card backdrop styling to right container
     CB.UI.SetBackdropCompat(rightCardContainer, {
@@ -4921,33 +4937,8 @@ function PL.CreateUnifiedProfessionDisplay(parent, professionData, theme, catego
     local yOffset = -20
     local contentHeight = 0
     
-    -- Skill level bar (like original profession window)
-    if professionData.level then
-        local skillLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        skillLabel:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, yOffset)
-        skillLabel:SetText("Skill: " .. (professionData.level or "0") .. " / " .. (professionData.maxLevel or "300"))
-        skillLabel:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
-        
-        local skillBar = CreateFrame("StatusBar", nil, parent)
-        skillBar:SetSize(400, 16)
-        skillBar:SetPoint("TOPLEFT", skillLabel, "BOTTOMLEFT", 0, -5)
-        skillBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        skillBar:SetStatusBarColor(theme.accent[1], theme.accent[2], theme.accent[3], 1)
-        skillBar:SetMinMaxValues(0, professionData.maxLevel or 300)
-        skillBar:SetValue(professionData.level or 0)
-        
-        local skillBg = skillBar:CreateTexture(nil, "BACKGROUND")
-        skillBg:SetAllPoints()
-        skillBg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        skillBg:SetVertexColor(theme.secondary[1], theme.secondary[2], theme.secondary[3], 0.8)
-        
-        -- Track these elements
-        table.insert(parent.displayElements, skillLabel)
-        table.insert(parent.displayElements, skillBar)
-        
-        yOffset = yOffset - 50
-        contentHeight = contentHeight + 50
-    end
+    -- Skill level bar has been moved to title bar for better space utilization
+    -- No longer displayed in content area
     
     -- Recipe list organized by categories
     if professionData.recipes and #professionData.recipes > 0 then
@@ -5053,6 +5044,9 @@ function PL.CreateUnifiedProfessionDisplay(parent, professionData, theme, catego
             recipeHeader:SetText("Known Recipes (" .. #professionData.recipes .. ")")
             recipeHeader:SetTextColor(theme.text[1], theme.text[2], theme.text[3])
             
+            -- Track this element for proper cleanup
+            table.insert(parent.displayElements, recipeHeader)
+            
             yOffset = yOffset - 25
             contentHeight = contentHeight + 25
             
@@ -5113,6 +5107,9 @@ function PL.CreateUnifiedProfessionDisplay(parent, professionData, theme, catego
         noRecipesText:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, yOffset)
         noRecipesText:SetText("No recipes available")
         noRecipesText:SetTextColor(theme.text[1] * 0.7, theme.text[2] * 0.7, theme.text[3] * 0.7)
+        
+        -- Track this element for proper cleanup
+        table.insert(parent.displayElements, noRecipesText)
         
         yOffset = yOffset - 30
         contentHeight = contentHeight + 30
@@ -5576,6 +5573,23 @@ function PL.ShowProfessionData(playerName, professionName, snapshot)
         -- Show user-friendly name in title (e.g., "Goblin Engineering - PlayerName")
         local displayPlayerName = NormalizePlayerName(professionData.player) or professionData.player
         frame.TitleText:SetText((displayName or "Profession") .. " - " .. displayPlayerName)
+        
+        -- Update compact skill level bar in title bar
+        if frame.TitleSkillBar and frame.TitleSkillText and professionData.level then
+            local currentLevel = professionData.level or 0
+            local maxLevel = professionData.maxLevel or 300
+            
+            frame.TitleSkillBar:SetMinMaxValues(0, maxLevel)
+            frame.TitleSkillBar:SetValue(currentLevel)
+            frame.TitleSkillText:SetText(currentLevel .. "/" .. maxLevel)
+            
+            -- Apply color based on skill level (same logic as guild tab)
+            local r, g, b = CB.getProfessionLevelColor(currentLevel)
+            frame.TitleSkillBar:SetStatusBarColor(r, g, b, 1)
+            
+            frame.TitleSkillBar:Show()
+        end
+        
         frame:Show()
         local displayPlayerName = NormalizePlayerName(professionData.player) or professionData.player
         CB.Debug("Displayed profession data for: " .. displayPlayerName .. " (" .. (displayName or "Unknown") .. ")")
